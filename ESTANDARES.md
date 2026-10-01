@@ -26,14 +26,6 @@ El mensaje del commit tiene este formato: `tipo: descripción`. La descripción 
 
 Tipos permitidos: `feat`, `fix`, `docs`, `refactor`, `test` y `chore`.
 
-Ejemplos:
-
-```
-feat(reservas): bloquear reservas después de las 12:00 p.m.
-fix(auth): corregir el rol del cocinero en el login
-docs: agregar estándares del equipo
-```
-
 Ramas:
 
 - `main`: la versión estable. Solo recibe cambios que vienen de `develop`.
@@ -55,11 +47,11 @@ Una tarea se puede empezar cuando cumple estas cinco condiciones:
 
 ## 4. Definition of Done
 
-Una tarea está terminada cuando cumple estas siete condiciones. Cualquier persona puede comprobarlas abriendo el repositorio:
+Una tarea está terminada cuando cumple estas siete condiciones:
 
 1. En un clon limpio del repositorio, `./mvnw clean verify` termina en `BUILD SUCCESS`, es decir, las pruebas pasan.
 2. `./mvnw spotless:check` termina en `BUILD SUCCESS`.
-3. Hay un pull request hacia `develop` aprobado por la otra persona del equipo, y la aprobación se ve en el historial del PR.
+3. Hay un pull request hacia `develop` aprobado por el otro integrante del equipo, y la aprobación se ve en el historial del PR.
 4. Cada criterio de aceptación del issue tiene al menos una prueba automatizada en `src/test`, y el PR menciona su nombre.
 5. Todos los commits de la rama siguen la convención de la sección 2, lo que se comprueba con `git log`.
 6. El PR enlaza el issue y el código del requerimiento (`RF-xx` o `RNF-xx`), y todas las casillas del issue están marcadas.
@@ -67,9 +59,9 @@ Una tarea está terminada cuando cumple estas siete condiciones. Cualquier perso
 
 ## 5. Política de revisión
 
-Como somos dos, cada pull request lo revisa la otra persona. Nadie aprueba ni integra su propio PR.
+Como somos dos, cada pull request lo revisa la otra persona. Ninguno aprueba ni integra su propio PR.
 
-El plazo para revisar es de 24 horas hábiles desde que se abre el PR. Si pasa ese tiempo sin respuesta, quien abrió el PR le escribe a la otra persona por el chat del equipo y no integra hasta tener la aprobación.
+El plazo para revisar es de 24 horas hábiles desde que se abre el PR. Si pasa ese tiempo sin respuesta, quien abrió el PR le escribe a la otra persona por el interno y no se integra hasta tener la aprobación.
 
 Lo que bloquea el PR:
 
