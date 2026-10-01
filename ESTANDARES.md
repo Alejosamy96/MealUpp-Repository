@@ -12,7 +12,7 @@ Adoptamos la [Google Java Style Guide](https://google.github.io/styleguide/javag
 
 El código (clases, métodos, variables y paquetes) va en inglés. Los comentarios y la documentación del repositorio van en español.
 
-El formateador está configurado en el `pom.xml`. Para formatear el código usamos `mvn spotless:apply` y para revisar que todo cumpla usamos `mvn spotless:check`.
+El formateador está configurado en el `pom.xml`. Para formatear el código usamos `./mvnw spotless:apply` y para revisar que todo cumpla usamos `./mvnw spotless:check`. Usamos el Maven Wrapper (`mvnw`) que viene dentro del repositorio, así que no hace falta instalar Maven. En Windows PowerShell se escribe `.\mvnw`.
 
 Nuestras tres reglas de nombres:
 
@@ -57,13 +57,13 @@ Una tarea se puede empezar cuando cumple estas cinco condiciones:
 
 Una tarea está terminada cuando cumple estas siete condiciones. Cualquier persona puede comprobarlas abriendo el repositorio:
 
-1. En un clon limpio del repositorio, `mvn clean verify` termina en `BUILD SUCCESS`, es decir, las pruebas pasan.
-2. `mvn spotless:check` termina en `BUILD SUCCESS`.
+1. En un clon limpio del repositorio, `./mvnw clean verify` termina en `BUILD SUCCESS`, es decir, las pruebas pasan.
+2. `./mvnw spotless:check` termina en `BUILD SUCCESS`.
 3. Hay un pull request hacia `develop` aprobado por la otra persona del equipo, y la aprobación se ve en el historial del PR.
 4. Cada criterio de aceptación del issue tiene al menos una prueba automatizada en `src/test`, y el PR menciona su nombre.
 5. Todos los commits de la rama siguen la convención de la sección 2, lo que se comprueba con `git log`.
 6. El PR enlaza el issue y el código del requerimiento (`RF-xx` o `RNF-xx`), y todas las casillas del issue están marcadas.
-7. No hay contraseñas ni llaves en el código, las credenciales se leen de variables de entorno. Se comprueba con `git grep -i "password"`.
+7. No hay contraseñas ni llaves escritas en el código ni en `src/main/resources/application.properties`; las credenciales se leen de variables de entorno. Se comprueba abriendo ese archivo.
 
 ## 5. Política de revisión
 
@@ -73,8 +73,8 @@ El plazo para revisar es de 24 horas hábiles desde que se abre el PR. Si pasa e
 
 Lo que bloquea el PR:
 
-- Las pruebas fallan con `mvn clean verify`.
-- `mvn spotless:check` falla.
+- Las pruebas fallan con `./mvnw clean verify`.
+- `./mvnw spotless:check` falla.
 - Algún commit no sigue la convención de la sección 2.
 - El PR no enlaza el requerimiento (`RF-xx` o `RNF-xx`).
 - Un criterio de aceptación no tiene prueba automatizada.
