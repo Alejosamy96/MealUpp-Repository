@@ -1,4 +1,4 @@
-package com.example.MealUpp_Repository;
+package com.example.mealupp;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

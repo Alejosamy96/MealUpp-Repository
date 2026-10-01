@@ -1,4 +1,4 @@
-package com.example.MealUpp_Repository;
+package com.example.mealupp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
