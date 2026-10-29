@@ -56,7 +56,8 @@ public class StaffAuthService {
     String token = newToken();
     LocalDateTime expiresAt = LocalDateTime.now(clock).plus(tokenDuration);
     sessions.put(token, new Session(member.getUsername(), expiresAt));
-    return new LoginResponse(token, expiresAt, member.getFullName(), member.getRole());
+    return new LoginResponse(
+        token, expiresAt, member.getFullName(), member.getRole(), member.getRole().sections());
   }
 
   /** El rol se lee de la base de datos en cada petición, así un cambio de rol aplica de una vez. */
