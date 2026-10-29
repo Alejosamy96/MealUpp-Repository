@@ -111,7 +111,8 @@ class OrderServiceTest {
   void cp08_deliveryTimeAtWindowLimitsIsAccepted(String time) {
     dishExistsAndSaveWorks();
 
-    OrderResponse response = serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.parse(time)));
+    OrderResponse response =
+        serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.parse(time)));
 
     assertThat(response.deliveryTime()).isEqualTo(LocalTime.parse(time));
   }
@@ -189,8 +190,13 @@ class OrderServiceTest {
         .thenReturn(
             List.of(
                 order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING),
-                order(3, LocalTime.of(12, 30), DeliveryZone.FURNITURE_STREET, OrderStatus.CANCELLED),
-                order(4, LocalTime.of(13, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.IN_PREPARATION)));
+                order(
+                    3, LocalTime.of(12, 30), DeliveryZone.FURNITURE_STREET, OrderStatus.CANCELLED),
+                order(
+                    4,
+                    LocalTime.of(13, 0),
+                    DeliveryZone.SHOPPING_CENTER,
+                    OrderStatus.IN_PREPARATION)));
 
     DailyOrdersResponse response = serviceAt(LocalTime.of(11, 0)).getDailyOrders(null);
 
@@ -203,13 +209,13 @@ class OrderServiceTest {
     when(orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(
             TODAY, DeliveryZone.FURNITURE_STREET))
         .thenReturn(
-            List.of(order(5, LocalTime.of(12, 0), DeliveryZone.FURNITURE_STREET, OrderStatus.PENDING)));
+            List.of(
+                order(5, LocalTime.of(12, 0), DeliveryZone.FURNITURE_STREET, OrderStatus.PENDING)));
 
     DailyOrdersResponse response =
         serviceAt(LocalTime.of(11, 0)).getDailyOrders(DeliveryZone.FURNITURE_STREET);
 
-    assertThat(response.orders())
-        .allMatch(o -> o.deliveryZone() == DeliveryZone.FURNITURE_STREET);
+    assertThat(response.orders()).allMatch(o -> o.deliveryZone() == DeliveryZone.FURNITURE_STREET);
     assertThat(response.totalLunches()).isEqualTo(5);
   }
 
@@ -217,7 +223,8 @@ class OrderServiceTest {
 
   @Test
   void cp15b_validTransitionUpdatesStatus() {
-    Order pending = order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    Order pending =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
     when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
     when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -229,7 +236,8 @@ class OrderServiceTest {
 
   @Test
   void cp15c_skippingAStateIsRejected() {
-    Order pending = order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    Order pending =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
     when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
     OrderService service = serviceAt(LocalTime.of(11, 0));
 

@@ -1,6 +1,5 @@
 package com.example.mealupp.controller;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -11,10 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.mealupp.model.Dish;
 import com.example.mealupp.repository.DishRepository;
 import com.example.mealupp.repository.OrderRepository;
+import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Base64;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-/** Pruebas de integración: API + seguridad + base de datos H2. */
+/** Pruebas de integración: API + seguridad con token + base de datos H2. */
 @SpringBootTest
 @ActiveProfiles("test")
 class OrderApiIntegrationTest {
@@ -73,6 +75,19 @@ class OrderApiIntegrationTest {
          "deliveryTime": "12:00", "deliveryZone": "%s", "deliveryDetail": "Local 12"}
         """
         .formatted(dishId, zone);
+  }
+
+  private String staffToken() throws Exception {
+    String body =
+        mockMvc
+            .perform(
+                post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"username\": \"staff\", \"password\": \"test-password\"}"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return "Bearer " + JsonPath.read(body, "$.token");
   }
 
   // ---------- HU-01 y HU-05: rutas públicas ----------
@@ -142,7 +157,65 @@ class OrderApiIntegrationTest {
   @Test
   void cp18b_wrongPasswordReturns401() throws Exception {
     mockMvc
-        .perform(get("/api/staff/orders").with(httpBasic("staff", "incorrecta")))
+        .perform(
+            post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\": \"staff\", \"password\": \"incorrecta\"}"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos"));
+  }
+
+  // ---------- DEF-01: inicio de sesión con token ----------
+
+  @Test
+  void cp23_validLoginReturnsToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\": \"staff\", \"password\": \"test-password\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.token").isNotEmpty())
+        .andExpect(jsonPath("$.expiresAt").isNotEmpty());
+  }
+
+  @Test
+  void cp23b_emptyFieldIsRejectedWithAMessage() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\": \"staff\", \"password\": \"\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").isNotEmpty());
+  }
+
+  @Test
+  void cp24_invalidTokenReturns401() throws Exception {
+    mockMvc
+        .perform(get("/api/staff/orders").header("Authorization", "Bearer token-inventado"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void cp25_basicCredentialsAreNoLongerAccepted() throws Exception {
+    String basic =
+        "Basic "
+            + Base64.getEncoder()
+                .encodeToString("staff:test-password".getBytes(StandardCharsets.UTF_8));
+    mockMvc
+        .perform(get("/api/staff/orders").header("Authorization", basic))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void cp26_tokenStopsWorkingAfterLogout() throws Exception {
+    String token = staffToken();
+    mockMvc
+        .perform(post("/api/auth/logout").header("Authorization", token))
+        .andExpect(status().isNoContent());
+    mockMvc
+        .perform(get("/api/staff/orders").header("Authorization", token))
         .andExpect(status().isUnauthorized());
   }
 
@@ -150,6 +223,7 @@ class OrderApiIntegrationTest {
 
   @Test
   void cp19_staffSeesOrdersAndUpdatesStatus() throws Exception {
+    String token = staffToken();
     mockMvc.perform(
         post("/api/orders")
             .contentType(MediaType.APPLICATION_JSON)
@@ -157,7 +231,7 @@ class OrderApiIntegrationTest {
     Long orderId = orderRepository.findAll().get(0).getId();
 
     mockMvc
-        .perform(get("/api/staff/orders").with(httpBasic("staff", "test-password")))
+        .perform(get("/api/staff/orders").header("Authorization", token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalLunches").value(2))
         .andExpect(jsonPath("$.orders.length()").value(1));
@@ -165,7 +239,7 @@ class OrderApiIntegrationTest {
     mockMvc
         .perform(
             patch("/api/staff/orders/{id}/status", orderId)
-                .with(httpBasic("staff", "test-password"))
+                .header("Authorization", token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\": \"IN_PREPARATION\"}"))
         .andExpect(status().isOk())
@@ -174,7 +248,7 @@ class OrderApiIntegrationTest {
     mockMvc
         .perform(
             patch("/api/staff/orders/{id}/status", orderId)
-                .with(httpBasic("staff", "test-password"))
+                .header("Authorization", token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\": \"PENDING\"}"))
         .andExpect(status().isBadRequest());
@@ -182,10 +256,11 @@ class OrderApiIntegrationTest {
 
   @Test
   void cp16c_unknownOrderReturns404() throws Exception {
+    String token = staffToken();
     mockMvc
         .perform(
             patch("/api/staff/orders/{id}/status", 9999)
-                .with(httpBasic("staff", "test-password"))
+                .header("Authorization", token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\": \"IN_PREPARATION\"}"))
         .andExpect(status().isNotFound());
