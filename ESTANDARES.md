@@ -1,10 +1,10 @@
 # Estándares del equipo - MealUpp
 
-Proyecto: sistema de reserva de almuerzos.
+Proyecto: sistema de pedidos de almuerzos con entrega programada.
 Equipo: Danna Giselle Aguilar García y Alejandro López Rodríguez.
 Redactado por: Danna Giselle Aguilar García.
 
-Trabajamos con Java y Spring Boot 4.1.1, usamos Maven para compilar y manejar las dependencias, PostgreSQL como base de datos y Spotless con google-java-format como formateador.
+Trabajamos con Java y Spring Boot 4.1.1, usamos Maven para compilar y manejar las dependencias, PostgreSQL como base de datos, Spotless con google-java-format como formateador, JaCoCo para medir la cobertura de pruebas (mínimo 70 % de líneas, si no el build falla) y SonarCloud como herramienta de análisis estático.
 
 ## 1. Guía de estilo y nombres
 
@@ -16,9 +16,9 @@ El formateador está configurado en el `pom.xml`. Para formatear el código usam
 
 Nuestras tres reglas de nombres:
 
-1. Cada clase termina con el nombre de su capa: `ReservationController`, `ReservationService`, `ReservationRepository`. Las entidades van en singular y sin sufijo, por ejemplo `Reservation`.
-2. Los objetos que se envían o reciben por la API terminan en `Request` o `Response` (`CreateReservationRequest`, `ReservationResponse`) y van en el paquete `dto`.
-3. Los métodos que devuelven `boolean` empiezan con `is`, `has` o `can`, por ejemplo `isReservationOpen` o `hasArrived`.
+1. Cada clase termina con el nombre de su capa: `OrderController`, `OrderService`, `OrderRepository`. Las entidades van en singular y sin sufijo, por ejemplo `Order`.
+2. Los objetos que se envían o reciben por la API terminan en `Request` o `Response` (`CreateOrderRequest`, `OrderResponse`) y van en el paquete `dto`.
+3. Los métodos que devuelven `boolean` empiezan con `is`, `has` o `can`, por ejemplo `isAvailable` o `canTransitionTo`.
 
 ## 2. Convención de commits y ramas
 
@@ -30,7 +30,7 @@ Ramas:
 
 - `main`: la versión estable. Solo recibe cambios que vienen de `develop`.
 - `develop`: donde se junta el trabajo en curso.
-- `feature/<nombre-corto>`: para una funcionalidad nueva, por ejemplo `feature/aviso-llegada`.
+- `feature/<nombre-corto>`: para una funcionalidad nueva, por ejemplo `feature/roles-personal`.
 - `fix/<nombre-corto>`: para corregir un error.
 
 Las ramas `feature/` y `fix/` salen de `develop` y vuelven a `develop` con un pull request. No se hacen commits directos a `main`.
@@ -71,7 +71,7 @@ Lo que bloquea el PR:
 - El PR no enlaza el requerimiento (`RF-xx` o `RNF-xx`).
 - Un criterio de aceptación no tiene prueba automatizada.
 - Hay contraseñas o llaves dentro del código.
-- Un valor que debe poder cambiarse queda escrito fijo en el código, como la hora de cierre de las reservas (RNF-13).
+- Un valor que debe poder cambiarse queda escrito fijo en el código, como la hora límite para recibir pedidos (va en `application.properties`).
 
 Lo que no bloquea el PR: preferencias personales sobre nombres o estructura que no rompen ninguna regla de la sección 1, y sugerencias de mejora que no afectan los criterios de aceptación. Se dejan como comentario y el PR se puede integrar.
 

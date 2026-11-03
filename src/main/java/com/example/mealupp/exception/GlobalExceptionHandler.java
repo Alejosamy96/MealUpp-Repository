@@ -17,6 +17,12 @@ public class GlobalExceptionHandler {
     return new ErrorResponse(ex.getMessage());
   }
 
+  @ExceptionHandler(InvalidCredentialsException.class)
+  @ResponseStatus(HttpStatus.UNAUTHORIZED)
+  public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
+    return new ErrorResponse(ex.getMessage());
+  }
+
   @ExceptionHandler(NotFoundException.class)
   @ResponseStatus(HttpStatus.NOT_FOUND)
   public ErrorResponse handleNotFound(NotFoundException ex) {

@@ -76,8 +76,9 @@ class OrderServiceTest {
   @ValueSource(ints = {0, 11})
   void cp03_cp06_quantityOutsideRangeIsRejected(int quantity) {
     OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest invalid = request(quantity, LocalTime.of(12, 0));
 
-    assertThatThrownBy(() -> service.createOrder(request(quantity, LocalTime.of(12, 0))))
+    assertThatThrownBy(() -> service.createOrder(invalid))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining("cantidad");
     verify(orderRepository, never()).save(any());
@@ -100,8 +101,9 @@ class OrderServiceTest {
   @ValueSource(strings = {"11:29", "14:01"})
   void cp07_deliveryTimeOutsideWindowIsRejected(String time) {
     OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest invalid = request(1, LocalTime.parse(time));
 
-    assertThatThrownBy(() -> service.createOrder(request(1, LocalTime.parse(time))))
+    assertThatThrownBy(() -> service.createOrder(invalid))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining("hora de entrega");
   }
@@ -111,7 +113,8 @@ class OrderServiceTest {
   void cp08_deliveryTimeAtWindowLimitsIsAccepted(String time) {
     dishExistsAndSaveWorks();
 
-    OrderResponse response = serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.parse(time)));
+    OrderResponse response =
+        serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.parse(time)));
 
     assertThat(response.deliveryTime()).isEqualTo(LocalTime.parse(time));
   }
@@ -132,8 +135,9 @@ class OrderServiceTest {
   @ValueSource(strings = {"10:30", "10:31"})
   void cp09b_orderAtOrAfterCutoffIsRejected(String now) {
     OrderService service = serviceAt(LocalTime.parse(now));
+    CreateOrderRequest late = request(1, LocalTime.of(12, 0));
 
-    assertThatThrownBy(() -> service.createOrder(request(1, LocalTime.of(12, 0))))
+    assertThatThrownBy(() -> service.createOrder(late))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining("antes de las");
   }
@@ -145,8 +149,9 @@ class OrderServiceTest {
     Dish unavailable = new Dish("Pasta", "Agotada", new BigDecimal("11000"), false);
     when(dishRepository.findById(1L)).thenReturn(Optional.of(unavailable));
     OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest order = request(1, LocalTime.of(12, 0));
 
-    assertThatThrownBy(() -> service.createOrder(request(1, LocalTime.of(12, 0))))
+    assertThatThrownBy(() -> service.createOrder(order))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining("no está disponible");
   }
@@ -155,9 +160,9 @@ class OrderServiceTest {
   void cp11b_nonexistentDishIsRejected() {
     when(dishRepository.findById(1L)).thenReturn(Optional.empty());
     OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest order = request(1, LocalTime.of(12, 0));
 
-    assertThatThrownBy(() -> service.createOrder(request(1, LocalTime.of(12, 0))))
-        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> service.createOrder(order)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
@@ -189,8 +194,13 @@ class OrderServiceTest {
         .thenReturn(
             List.of(
                 order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING),
-                order(3, LocalTime.of(12, 30), DeliveryZone.FURNITURE_STREET, OrderStatus.CANCELLED),
-                order(4, LocalTime.of(13, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.IN_PREPARATION)));
+                order(
+                    3, LocalTime.of(12, 30), DeliveryZone.FURNITURE_STREET, OrderStatus.CANCELLED),
+                order(
+                    4,
+                    LocalTime.of(13, 0),
+                    DeliveryZone.SHOPPING_CENTER,
+                    OrderStatus.IN_PREPARATION)));
 
     DailyOrdersResponse response = serviceAt(LocalTime.of(11, 0)).getDailyOrders(null);
 
@@ -203,13 +213,13 @@ class OrderServiceTest {
     when(orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(
             TODAY, DeliveryZone.FURNITURE_STREET))
         .thenReturn(
-            List.of(order(5, LocalTime.of(12, 0), DeliveryZone.FURNITURE_STREET, OrderStatus.PENDING)));
+            List.of(
+                order(5, LocalTime.of(12, 0), DeliveryZone.FURNITURE_STREET, OrderStatus.PENDING)));
 
     DailyOrdersResponse response =
         serviceAt(LocalTime.of(11, 0)).getDailyOrders(DeliveryZone.FURNITURE_STREET);
 
-    assertThat(response.orders())
-        .allMatch(o -> o.deliveryZone() == DeliveryZone.FURNITURE_STREET);
+    assertThat(response.orders()).allMatch(o -> o.deliveryZone() == DeliveryZone.FURNITURE_STREET);
     assertThat(response.totalLunches()).isEqualTo(5);
   }
 
@@ -217,7 +227,8 @@ class OrderServiceTest {
 
   @Test
   void cp15b_validTransitionUpdatesStatus() {
-    Order pending = order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    Order pending =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
     when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
     when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -229,7 +240,8 @@ class OrderServiceTest {
 
   @Test
   void cp15c_skippingAStateIsRejected() {
-    Order pending = order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    Order pending =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
     when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
     OrderService service = serviceAt(LocalTime.of(11, 0));
 

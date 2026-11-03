@@ -1,8 +1,8 @@
 package com.example.mealupp.model;
 
 /**
- * Estados de un pedido. Transiciones permitidas: PENDING -> IN_PREPARATION -> DELIVERED, y
- * PENDING -> CANCELLED.
+ * Estados de un pedido. Transiciones permitidas: PENDING -> IN_PREPARATION -> DELIVERED, y PENDING
+ * -> CANCELLED.
  */
 public enum OrderStatus {
   PENDING,
