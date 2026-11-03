@@ -68,8 +68,8 @@ class RoleOrderViewServiceTest {
                 order(4, OrderStatus.CANCELLED)));
   }
 
-  private static List<String> fields(Class<?> record) {
-    return Arrays.stream(record.getRecordComponents()).map(RecordComponent::getName).toList();
+  private static List<String> fields(Class<?> recordType) {
+    return Arrays.stream(recordType.getRecordComponents()).map(RecordComponent::getName).toList();
   }
 
   @Test

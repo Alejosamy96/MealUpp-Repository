@@ -17,8 +17,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * HU-05: solo el personal registrado entra a /api/staff/**. Menú, pedidos y login son públicos.
  *
- * <p>HU-06: cocina entra solo a /api/staff/kitchen, caja solo a /api/staff/cashier, y todo lo demás
- * de /api/staff es solo para ADMIN. ADMIN también puede entrar a las vistas de cocina y caja.
+ * <p>HU-06: cocina entra solo a /api/staff/kitchen, caja solo a /api/staff/cashier, y el resto de
+ * /api/staff es solo para ADMIN. ADMIN también puede entrar a las vistas de cocina y caja.
  *
  * <p>DEF-01: el personal se autentica con un token en la cabecera Authorization. El navegador no
  * envía esa cabecera por su cuenta (como sí pasaba con HTTP Basic), así que otra página no puede
@@ -27,6 +27,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  */
 @Configuration
 public class SecurityConfig {
+
+  private static final String ADMIN = "ADMIN";
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http, StaffAuthService authService) {
@@ -45,11 +47,11 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/logout")
                     .authenticated()
                     .requestMatchers("/api/staff/kitchen/**")
-                    .hasAnyRole("KITCHEN", "ADMIN")
+                    .hasAnyRole("KITCHEN", ADMIN)
                     .requestMatchers("/api/staff/cashier/**")
-                    .hasAnyRole("CASHIER", "ADMIN")
+                    .hasAnyRole("CASHIER", ADMIN)
                     .requestMatchers("/api/staff/**")
-                    .hasRole("ADMIN")
+                    .hasRole(ADMIN)
                     .anyRequest()
                     .denyAll());
     return http.build();
