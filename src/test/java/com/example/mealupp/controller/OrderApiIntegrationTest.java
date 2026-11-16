@@ -9,7 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.mealupp.model.Dish;
 import com.example.mealupp.repository.DishRepository;
+import com.example.mealupp.repository.KitchenTicketRepository;
 import com.example.mealupp.repository.OrderRepository;
+import com.example.mealupp.repository.PaymentRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -48,6 +50,8 @@ class OrderApiIntegrationTest {
   }
 
   @Autowired private WebApplicationContext context;
+  @Autowired private KitchenTicketRepository ticketRepository;
+  @Autowired private PaymentRepository paymentRepository;
   @Autowired private DishRepository dishRepository;
   @Autowired private OrderRepository orderRepository;
 
@@ -56,6 +60,8 @@ class OrderApiIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    ticketRepository.deleteAll();
+    paymentRepository.deleteAll();
     mockMvc =
         MockMvcBuilders.webAppContextSetup(context)
             .apply(SecurityMockMvcConfigurers.springSecurity())

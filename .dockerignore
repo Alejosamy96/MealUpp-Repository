@@ -1,0 +1,8 @@
+target/
+.git/
+.idea/
+media/
+backups/
+frontend-dist/
+.env
+*.md

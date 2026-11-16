@@ -15,14 +15,13 @@ public record CashierOrderView(
     OrderStatus status) {
 
   public static CashierOrderView from(Order order) {
-    BigDecimal price = order.getDish().getPrice();
     return new CashierOrderView(
         order.getId(),
         order.getCustomerName(),
         order.getDish().getName(),
         order.getQuantity(),
-        price,
-        price.multiply(BigDecimal.valueOf(order.getQuantity())),
+        order.getUnitPrice(),
+        order.getTotal(),
         order.getStatus());
   }
 }

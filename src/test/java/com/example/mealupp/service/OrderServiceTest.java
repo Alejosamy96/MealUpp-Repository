@@ -8,15 +8,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.mealupp.config.OrderRulesProperties;
+import com.example.mealupp.config.PaymentProperties;
 import com.example.mealupp.dto.CreateOrderRequest;
+import com.example.mealupp.dto.CreatedOrderResponse;
 import com.example.mealupp.dto.DailyOrdersResponse;
 import com.example.mealupp.dto.OrderResponse;
 import com.example.mealupp.exception.BusinessRuleException;
+import com.example.mealupp.exception.ForbiddenActionException;
 import com.example.mealupp.exception.NotFoundException;
+import com.example.mealupp.integration.notification.KitchenNotifier;
+import com.example.mealupp.integration.payment.PaymentGateway;
 import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.Dish;
 import com.example.mealupp.model.Order;
 import com.example.mealupp.model.OrderStatus;
+import com.example.mealupp.model.StaffRole;
 import com.example.mealupp.repository.DishRepository;
 import com.example.mealupp.repository.OrderRepository;
 import java.math.BigDecimal;
@@ -34,6 +40,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /** Pruebas unitarias de HU-02, HU-03 y HU-04. Las reglas son las de application.properties. */
 @ExtendWith(MockitoExtension.class)
@@ -43,10 +50,18 @@ class OrderServiceTest {
   private static final LocalDate TODAY = LocalDate.of(2026, 10, 7);
   private static final OrderRulesProperties RULES =
       new OrderRulesProperties(
-          LocalTime.of(10, 30), LocalTime.of(11, 30), LocalTime.of(14, 0), 1, 10);
+          LocalTime.of(10, 30), LocalTime.of(11, 30), LocalTime.of(14, 0), 1, 10, 100);
+  private static final PaymentProperties PAYMENTS_OFF =
+      new PaymentProperties(false, "sandbox", "secreto", 15, "COP", "http://localhost/pago");
+  private static final PaymentProperties PAYMENTS_ON =
+      new PaymentProperties(true, "sandbox", "secreto", 15, "COP", "http://localhost/pago");
 
   @Mock private OrderRepository orderRepository;
   @Mock private DishRepository dishRepository;
+  @Mock private PaymentService paymentService;
+  @Mock private OrderConfirmationService confirmationService;
+  @Mock private KitchenTicketService ticketService;
+  @Mock private KitchenNotifier notifier;
 
   private Dish availableDish;
 
@@ -56,8 +71,21 @@ class OrderServiceTest {
   }
 
   private OrderService serviceAt(LocalTime now) {
+    return serviceAt(now, PAYMENTS_OFF);
+  }
+
+  private OrderService serviceAt(LocalTime now, PaymentProperties payments) {
     Clock clock = Clock.fixed(LocalDateTime.of(TODAY, now).atZone(ZONE).toInstant(), ZONE);
-    return new OrderService(orderRepository, dishRepository, RULES, clock);
+    return new OrderService(
+        orderRepository,
+        dishRepository,
+        RULES,
+        payments,
+        clock,
+        paymentService,
+        confirmationService,
+        ticketService,
+        notifier);
   }
 
   private static CreateOrderRequest request(int quantity, LocalTime deliveryTime) {
@@ -89,7 +117,7 @@ class OrderServiceTest {
   void cp04_cp05_quantityAtLimitsIsAccepted(int quantity) {
     dishExistsAndSaveWorks();
 
-    OrderResponse response =
+    CreatedOrderResponse response =
         serviceAt(LocalTime.of(9, 0)).createOrder(request(quantity, LocalTime.of(12, 0)));
 
     assertThat(response.quantity()).isEqualTo(quantity);
@@ -113,7 +141,7 @@ class OrderServiceTest {
   void cp08_deliveryTimeAtWindowLimitsIsAccepted(String time) {
     dishExistsAndSaveWorks();
 
-    OrderResponse response =
+    CreatedOrderResponse response =
         serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.parse(time)));
 
     assertThat(response.deliveryTime()).isEqualTo(LocalTime.parse(time));
@@ -125,7 +153,7 @@ class OrderServiceTest {
   void cp09a_orderOneMinuteBeforeCutoffIsAccepted() {
     dishExistsAndSaveWorks();
 
-    OrderResponse response =
+    CreatedOrderResponse response =
         serviceAt(LocalTime.of(10, 29)).createOrder(request(1, LocalTime.of(12, 0)));
 
     assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
@@ -169,7 +197,7 @@ class OrderServiceTest {
   void cp12_validOrderIsSavedAsPendingWithAllItsData() {
     dishExistsAndSaveWorks();
 
-    OrderResponse response =
+    CreatedOrderResponse response =
         serviceAt(LocalTime.of(9, 0)).createOrder(request(2, LocalTime.of(12, 30)));
 
     assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
@@ -233,7 +261,8 @@ class OrderServiceTest {
     when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
     OrderResponse response =
-        serviceAt(LocalTime.of(11, 0)).updateStatus(7L, OrderStatus.IN_PREPARATION);
+        serviceAt(LocalTime.of(11, 0))
+            .updateStatus(7L, OrderStatus.IN_PREPARATION, StaffRole.ADMIN, "staff");
 
     assertThat(response.status()).isEqualTo(OrderStatus.IN_PREPARATION);
   }
@@ -245,7 +274,8 @@ class OrderServiceTest {
     when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
     OrderService service = serviceAt(LocalTime.of(11, 0));
 
-    assertThatThrownBy(() -> service.updateStatus(7L, OrderStatus.DELIVERED))
+    assertThatThrownBy(
+            () -> service.updateStatus(7L, OrderStatus.DELIVERED, StaffRole.ADMIN, "staff"))
         .isInstanceOf(BusinessRuleException.class);
     assertThat(pending.getStatus()).isEqualTo(OrderStatus.PENDING);
   }
@@ -257,7 +287,8 @@ class OrderServiceTest {
     when(orderRepository.findById(7L)).thenReturn(Optional.of(delivered));
     OrderService service = serviceAt(LocalTime.of(11, 0));
 
-    assertThatThrownBy(() -> service.updateStatus(7L, OrderStatus.PENDING))
+    assertThatThrownBy(
+            () -> service.updateStatus(7L, OrderStatus.PENDING, StaffRole.ADMIN, "staff"))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining("ya no se puede modificar");
   }
@@ -267,7 +298,187 @@ class OrderServiceTest {
     when(orderRepository.findById(99L)).thenReturn(Optional.empty());
     OrderService service = serviceAt(LocalTime.of(11, 0));
 
-    assertThatThrownBy(() -> service.updateStatus(99L, OrderStatus.IN_PREPARATION))
+    assertThatThrownBy(
+            () -> service.updateStatus(99L, OrderStatus.IN_PREPARATION, StaffRole.ADMIN, "staff"))
+        .isInstanceOf(NotFoundException.class);
+  }
+
+  // ---------- Pago en línea ----------
+
+  @Test
+  void pay01_withPaymentsRequiredTheOrderWaitsForPayment() {
+    dishExistsAndSaveWorks();
+    when(paymentService.startPayment(any(Order.class)))
+        .thenReturn(
+            new PaymentGateway.PaymentSession("SBX-1", "http://localhost/pago?reference=SBX-1"));
+
+    CreatedOrderResponse response =
+        serviceAt(LocalTime.of(9, 0), PAYMENTS_ON).createOrder(request(2, LocalTime.of(12, 0)));
+
+    assertThat(response.status()).isEqualTo(OrderStatus.PENDING_PAYMENT);
+    assertThat(response.paymentUrl()).isEqualTo("http://localhost/pago?reference=SBX-1");
+    assertThat(response.total()).isEqualByComparingTo("24000");
+    assertThat(response.accessCode()).hasSize(10);
+    verify(confirmationService, never()).confirm(any(Order.class));
+  }
+
+  @Test
+  void pay02_withoutPaymentsTheOrderIsConfirmedAtOnce() {
+    dishExistsAndSaveWorks();
+
+    CreatedOrderResponse response =
+        serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.of(12, 0)));
+
+    assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
+    assertThat(response.paymentUrl()).isNull();
+    verify(confirmationService).confirm(any(Order.class));
+    verify(paymentService, never()).startPayment(any(Order.class));
+  }
+
+  // ---------- Límite de pedidos por día (valores límite: 99 y 100) ----------
+
+  @Test
+  void lim01_theHundredthOrderIsAccepted() {
+    when(orderRepository.countByOrderDateAndStatusNotIn(any(), any())).thenReturn(99L);
+    dishExistsAndSaveWorks();
+
+    CreatedOrderResponse response =
+        serviceAt(LocalTime.of(9, 0)).createOrder(request(1, LocalTime.of(12, 0)));
+
+    assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
+  }
+
+  @Test
+  void lim02_theOrderNumber101IsRejected() {
+    when(orderRepository.countByOrderDateAndStatusNotIn(any(), any())).thenReturn(100L);
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest request = request(1, LocalTime.of(12, 0));
+
+    assertThatThrownBy(() -> service.createOrder(request))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("Ya se alcanzó el máximo de 100 pedidos para hoy");
+    verify(orderRepository, never()).save(any());
+  }
+
+  // ---------- Estados por rol ----------
+
+  @Test
+  void role01_kitchenMovesAPendingOrderToPreparationAndTakesTheTicket() {
+    Order pending =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    OrderResponse response =
+        serviceAt(LocalTime.of(11, 0))
+            .updateStatus(7L, OrderStatus.IN_PREPARATION, StaffRole.KITCHEN, "cocina1");
+
+    assertThat(response.status()).isEqualTo(OrderStatus.IN_PREPARATION);
+    verify(ticketService).acknowledge(pending, "cocina1");
+    verify(notifier).orderChanged(any(OrderResponse.class));
+  }
+
+  @Test
+  void role02_deliveryMarksAnOrderInPreparationAsDelivered() {
+    Order inPreparation =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.IN_PREPARATION);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(inPreparation));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    OrderResponse response =
+        serviceAt(LocalTime.of(11, 0))
+            .updateStatus(7L, OrderStatus.DELIVERED, StaffRole.DELIVERY, "reparto1");
+
+    assertThat(response.status()).isEqualTo(OrderStatus.DELIVERED);
+    verify(ticketService, never()).acknowledge(any(Order.class), any());
+  }
+
+  @Test
+  void role03_cashierCancelsAnUnpaidOrder() {
+    Order unpaid =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING_PAYMENT);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(unpaid));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    OrderResponse response =
+        serviceAt(LocalTime.of(11, 0))
+            .updateStatus(7L, OrderStatus.CANCELLED, StaffRole.CASHIER, "caja1");
+
+    assertThat(response.status()).isEqualTo(OrderStatus.CANCELLED);
+  }
+
+  @Test
+  void role04_aRoleCannotMakeAChangeThatIsNotItsJob() {
+    Order pending =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
+    OrderService service = serviceAt(LocalTime.of(11, 0));
+
+    assertThatThrownBy(
+            () -> service.updateStatus(7L, OrderStatus.CANCELLED, StaffRole.KITCHEN, "cocina1"))
+        .isInstanceOf(ForbiddenActionException.class)
+        .hasMessageContaining("KITCHEN");
+    assertThat(pending.getStatus()).isEqualTo(OrderStatus.PENDING);
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  void role05_anExpiredOrderCannotBeModified() {
+    Order expired =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.EXPIRED);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(expired));
+    OrderService service = serviceAt(LocalTime.of(11, 0));
+
+    assertThatThrownBy(
+            () -> service.updateStatus(7L, OrderStatus.PENDING, StaffRole.ADMIN, "staff"))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("ya no se puede modificar");
+  }
+
+  // ---------- Totales y consulta del cliente ----------
+
+  @Test
+  void tot01_totalLunchesIgnoresUnpaidCancelledAndExpiredOrders() {
+    when(orderRepository.findByOrderDateOrderByDeliveryTimeAsc(TODAY))
+        .thenReturn(
+            List.of(
+                order(
+                    5,
+                    LocalTime.of(12, 0),
+                    DeliveryZone.SHOPPING_CENTER,
+                    OrderStatus.PENDING_PAYMENT),
+                order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING),
+                order(7, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.EXPIRED),
+                order(
+                    3, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.CANCELLED)));
+
+    DailyOrdersResponse response = serviceAt(LocalTime.of(11, 0)).getDailyOrders(null);
+
+    assertThat(response.totalLunches()).isEqualTo(2);
+  }
+
+  @Test
+  void trk01_theCustomerSeesTheOrderWithTheRightCode() {
+    Order pending =
+        order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
+
+    var tracking = serviceAt(LocalTime.of(11, 0)).track(7L, pending.getAccessCode());
+
+    assertThat(tracking.status()).isEqualTo(OrderStatus.PENDING);
+    assertThat(tracking.total()).isEqualByComparingTo("24000");
+    assertThat(tracking.paymentPending()).isFalse();
+  }
+
+  @Test
+  void trk02_aWrongCodeLooksLikeAnOrderThatDoesNotExist() {
+    Order pending =
+        order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    ReflectionTestUtils.setField(pending, "id", 7L);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(pending));
+    OrderService service = serviceAt(LocalTime.of(11, 0));
+
+    assertThatThrownBy(() -> service.track(7L, "CODIGO-FALSO"))
         .isInstanceOf(NotFoundException.class);
   }
 }

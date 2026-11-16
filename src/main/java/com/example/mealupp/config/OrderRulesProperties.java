@@ -11,6 +11,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param deliveryEnd última hora de entrega permitida (inclusive)
  * @param minQuantity cantidad mínima de almuerzos por pedido
  * @param maxQuantity cantidad máxima de almuerzos por pedido
+ * @param maxPerDay máximo de pedidos que se reciben en un día (sin contar los cancelados)
  */
 @ConfigurationProperties(prefix = "mealup.orders")
 public record OrderRulesProperties(
@@ -18,4 +19,5 @@ public record OrderRulesProperties(
     LocalTime deliveryStart,
     LocalTime deliveryEnd,
     int minQuantity,
-    int maxQuantity) {}
+    int maxQuantity,
+    int maxPerDay) {}

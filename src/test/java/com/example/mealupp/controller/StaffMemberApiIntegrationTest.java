@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.mealupp.model.StaffMember;
 import com.example.mealupp.model.StaffRole;
+import com.example.mealupp.repository.KitchenTicketRepository;
+import com.example.mealupp.repository.PaymentRepository;
 import com.example.mealupp.repository.StaffMemberRepository;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +30,8 @@ import org.springframework.web.context.WebApplicationContext;
 class StaffMemberApiIntegrationTest {
 
   @Autowired private WebApplicationContext context;
+  @Autowired private KitchenTicketRepository ticketRepository;
+  @Autowired private PaymentRepository paymentRepository;
   @Autowired private StaffMemberRepository staffRepository;
   @Autowired private PasswordEncoder encoder;
 
@@ -36,6 +40,8 @@ class StaffMemberApiIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    ticketRepository.deleteAll();
+    paymentRepository.deleteAll();
     mockMvc =
         MockMvcBuilders.webAppContextSetup(context)
             .apply(SecurityMockMvcConfigurers.springSecurity())
