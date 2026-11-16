@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.example.mealupp.dto.CashierOrderView;
+import com.example.mealupp.dto.DeliveryOrderView;
 import com.example.mealupp.dto.KitchenOrderView;
 import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.Dish;
@@ -96,5 +97,24 @@ class RoleOrderViewServiceTest {
     assertThat(fields(KitchenOrderView.class))
         .doesNotContain("customerName", "deliveryZone", "deliveryDetail", "total");
     assertThat(fields(CashierOrderView.class)).doesNotContain("deliveryZone", "deliveryDetail");
+  }
+
+  @Test
+  void deliveryOnlySeesOrdersReadyToGoWithoutPrices() {
+    todayHasOneOrderOfEachStatus();
+
+    assertThat(service.deliveryOrders(null))
+        .extracting(DeliveryOrderView::quantity)
+        .containsExactly(2);
+    assertThat(fields(DeliveryOrderView.class)).doesNotContain("unitPrice", "total");
+  }
+
+  @Test
+  void deliveryCanFilterByZone() {
+    when(orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(
+            TODAY, DeliveryZone.FURNITURE_STREET))
+        .thenReturn(List.of());
+
+    assertThat(service.deliveryOrders(DeliveryZone.FURNITURE_STREET)).isEmpty();
   }
 }

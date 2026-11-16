@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Archivos locales de MealUpp
+media/
+backups/
+.env
+frontend-dist/

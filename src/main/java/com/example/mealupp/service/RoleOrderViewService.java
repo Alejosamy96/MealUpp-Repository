@@ -1,7 +1,9 @@
 package com.example.mealupp.service;
 
 import com.example.mealupp.dto.CashierOrderView;
+import com.example.mealupp.dto.DeliveryOrderView;
 import com.example.mealupp.dto.KitchenOrderView;
+import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.Order;
 import com.example.mealupp.model.OrderStatus;
 import com.example.mealupp.repository.OrderRepository;
@@ -11,10 +13,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * HU-06 (criterio 2): cada rol ve solo los pedidos que necesita. Está separado de OrderService para
- * no seguir subiendo su complejidad.
- */
+/** Cada rol ve solo los pedidos y los datos que necesita. */
 @Service
 public class RoleOrderViewService {
 
@@ -41,6 +40,20 @@ public class RoleOrderViewService {
   @Transactional(readOnly = true)
   public List<CashierOrderView> cashierOrders() {
     return todayOrders().stream().map(CashierOrderView::from).toList();
+  }
+
+  /** Entrega: pedidos de hoy listos para salir (en preparación), opcionalmente de una zona. */
+  @Transactional(readOnly = true)
+  public List<DeliveryOrderView> deliveryOrders(DeliveryZone zone) {
+    List<Order> orders =
+        zone == null
+            ? todayOrders()
+            : orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(
+                LocalDate.now(clock), zone);
+    return orders.stream()
+        .filter(o -> o.getStatus() == OrderStatus.IN_PREPARATION)
+        .map(DeliveryOrderView::from)
+        .toList();
   }
 
   private List<Order> todayOrders() {

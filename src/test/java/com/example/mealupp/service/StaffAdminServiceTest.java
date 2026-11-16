@@ -18,12 +18,15 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /** Pruebas unitarias de HU 6: asignación de roles. */
 @ExtendWith(MockitoExtension.class)
 class StaffAdminServiceTest {
 
   @Mock private StaffMemberRepository staffRepository;
+
+  @Mock private PasswordEncoder passwordEncoder;
 
   @InjectMocks private StaffAdminService service;
 

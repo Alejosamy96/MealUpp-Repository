@@ -11,7 +11,9 @@ import com.example.mealupp.model.Order;
 import com.example.mealupp.model.StaffMember;
 import com.example.mealupp.model.StaffRole;
 import com.example.mealupp.repository.DishRepository;
+import com.example.mealupp.repository.KitchenTicketRepository;
 import com.example.mealupp.repository.OrderRepository;
+import com.example.mealupp.repository.PaymentRepository;
 import com.example.mealupp.repository.StaffMemberRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
@@ -56,6 +58,8 @@ class RoleViewsApiIntegrationTest {
   }
 
   @Autowired private WebApplicationContext context;
+  @Autowired private KitchenTicketRepository ticketRepository;
+  @Autowired private PaymentRepository paymentRepository;
   @Autowired private StaffMemberRepository staffRepository;
   @Autowired private DishRepository dishRepository;
   @Autowired private OrderRepository orderRepository;
@@ -65,6 +69,8 @@ class RoleViewsApiIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    ticketRepository.deleteAll();
+    paymentRepository.deleteAll();
     mockMvc =
         MockMvcBuilders.webAppContextSetup(context)
             .apply(SecurityMockMvcConfigurers.springSecurity())

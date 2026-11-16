@@ -20,6 +20,8 @@ class MenuServiceTest {
 
   @Mock private DishRepository dishRepository;
 
+  @Mock private MediaUrls mediaUrls;
+
   @InjectMocks private MenuService menuService;
 
   @Test
@@ -44,5 +46,19 @@ class MenuServiceTest {
 
     assertThat(menu.dishes()).isEmpty();
     assertThat(menu.message()).isEqualTo("No hay menú disponible hoy");
+  }
+
+  @Test
+  void menu_showsThePhotoAddressesOfTheDish() {
+    Dish dish = new Dish("Pasta", "Con vegetales", new BigDecimal("11000"), true);
+    dish.setImageKey("dishes/3/ab12cd");
+    when(dishRepository.findByAvailableTrue()).thenReturn(List.of(dish));
+    when(mediaUrls.thumbnailUrl("dishes/3/ab12cd")).thenReturn("/media/dishes/3/ab12cd_thumb.jpg");
+    when(mediaUrls.detailUrl("dishes/3/ab12cd")).thenReturn("/media/dishes/3/ab12cd_detail.jpg");
+
+    MenuResponse menu = menuService.getMenu();
+
+    assertThat(menu.dishes().get(0).thumbnailUrl()).isEqualTo("/media/dishes/3/ab12cd_thumb.jpg");
+    assertThat(menu.dishes().get(0).imageUrl()).isEqualTo("/media/dishes/3/ab12cd_detail.jpg");
   }
 }
