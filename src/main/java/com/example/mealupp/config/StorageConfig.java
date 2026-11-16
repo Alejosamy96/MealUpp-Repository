@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 /**
  * Dónde se guardan las fotos. mealup.storage.type=local las guarda en una carpeta y las sirve en
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 public class StorageConfig {
 
   @Bean
+  @Primary
   @ConditionalOnProperty(name = "mealup.storage.type", havingValue = "local", matchIfMissing = true)
   public ObjectStorage localObjectStorage(
       @Value("${mealup.storage.local-dir}") String directory,
@@ -28,6 +30,7 @@ public class StorageConfig {
   }
 
   @Bean
+  @Primary
   @ConditionalOnProperty(name = "mealup.storage.type", havingValue = "s3")
   public ObjectStorage s3ObjectStorage(
       @Value("${mealup.storage.s3.endpoint}") String endpoint,
