@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Locale;
 import javax.imageio.IIOImage;
@@ -29,7 +30,29 @@ public final class ImageProcessor {
   private static final float JPEG_QUALITY = 0.85f;
 
   /** Las dos versiones ya codificadas. */
-  public record ProcessedImage(byte[] thumbnail, byte[] detail) {}
+  public record ProcessedImage(byte[] thumbnail, byte[] detail) {
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof ProcessedImage that
+          && Arrays.equals(thumbnail, that.thumbnail)
+          && Arrays.equals(detail, that.detail);
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * Arrays.hashCode(thumbnail) + Arrays.hashCode(detail);
+    }
+
+    @Override
+    public String toString() {
+      return "ProcessedImage[thumbnail="
+          + thumbnail.length
+          + " bytes, detail="
+          + detail.length
+          + " bytes]";
+    }
+  }
 
   private final int thumbnailSize;
   private final int detailSize;
