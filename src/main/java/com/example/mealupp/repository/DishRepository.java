@@ -7,4 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DishRepository extends JpaRepository<Dish, Long> {
 
   List<Dish> findByAvailableTrue();
+
+  List<Dish> findAllByOrderByNameAsc();
+
+  boolean existsByNameIgnoreCase(String name);
+
+  boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

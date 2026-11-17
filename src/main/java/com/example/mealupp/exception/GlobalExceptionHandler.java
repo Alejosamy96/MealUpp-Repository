@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -21,6 +22,24 @@ public class GlobalExceptionHandler {
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
   public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
     return new ErrorResponse(ex.getMessage());
+  }
+
+  @ExceptionHandler(ForbiddenActionException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public ErrorResponse handleForbidden(ForbiddenActionException ex) {
+    return new ErrorResponse(ex.getMessage());
+  }
+
+  @ExceptionHandler(InvalidSignatureException.class)
+  @ResponseStatus(HttpStatus.UNAUTHORIZED)
+  public ErrorResponse handleInvalidSignature(InvalidSignatureException ex) {
+    return new ErrorResponse(ex.getMessage());
+  }
+
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public ErrorResponse handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+    return new ErrorResponse("La imagen supera el tamaño máximo de 5 MB");
   }
 
   @ExceptionHandler(NotFoundException.class)

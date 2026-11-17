@@ -1,0 +1,70 @@
+# MealUpp: proxy con HTTPS + API + base de datos, en una sola máquina.
+# Uso:  cp .env.example .env   (llenar los valores)   y luego   docker compose up -d --build
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mealup
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d mealup"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    # Sin "ports": la base de datos solo es visible dentro de la red interna de Docker.
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/mealup
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      STAFF_USERNAME: ${STAFF_USERNAME:-ferxxos}
+      STAFF_PASSWORD: ${STAFF_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET}
+      PAYMENTS_REQUIRED: ${PAYMENTS_REQUIRED:-true}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-sandbox}
+      SANDBOX_ENABLED: ${SANDBOX_ENABLED:-true}
+      SANDBOX_CHECKOUT_URL: https://${MEALUPP_DOMAIN:-localhost}/pago-simulado
+      CORS_ALLOWED_ORIGINS: https://${MEALUPP_DOMAIN:-localhost}
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      MEDIA_DIR: /data/media
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:-/media}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+    volumes:
+      - media:/data/media
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      MEALUPP_DOMAIN: ${MEALUPP_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend-dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:
+  caddy_config:

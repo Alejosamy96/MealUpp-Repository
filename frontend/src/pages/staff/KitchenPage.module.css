@@ -1,0 +1,8 @@
+.summary { color: var(--color-text-muted); }
+.summary strong { color: var(--color-olive); font-size: 1.3rem; }
+.pending { border-left: 6px solid var(--color-terracotta); }
+.cooking { border-left: 6px solid var(--chip-blue-fg); }
+.time { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 1.2rem; color: var(--color-olive); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.dish { font-size: 1.15rem; font-weight: 800; }
+.qty { color: var(--color-terracotta-dark); font-size: 1.4rem; }

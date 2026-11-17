@@ -1,0 +1,8 @@
+.form { display: grid; gap: var(--space-3); }
+.formActions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.row { display: grid; grid-template-columns: 1fr auto; gap: var(--space-3); align-items: end; }
+.inactive { opacity: 0.75; background: #f7f2ea; }
+.me { color: var(--color-text-muted); font-weight: 600; font-size: var(--fs-sm); }
+.gap { margin-bottom: var(--space-3); }
+.createCard { margin-bottom: var(--space-4); max-width: 520px; }
+.createTitle { font-size: 1.1rem; }

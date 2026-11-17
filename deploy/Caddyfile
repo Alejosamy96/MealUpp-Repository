@@ -1,0 +1,23 @@
+# Proxy inverso: HTTPS automático (certificado gratis), reparte el tráfico y sirve el frontend.
+# Con MEALUPP_DOMAIN=localhost usa un certificado local de pruebas.
+{$MEALUPP_DOMAIN:localhost} {
+	encode gzip
+
+	# La API, las fotos y el canal en tiempo real van al backend (el WebSocket se detecta solo).
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+	handle /media/* {
+		reverse_proxy api:8080
+	}
+	handle /ws/* {
+		reverse_proxy api:8080
+	}
+
+	# Todo lo demás es el frontend (carpeta frontend-dist con los archivos compilados).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

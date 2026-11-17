@@ -4,12 +4,12 @@ import com.example.mealupp.dto.LoginResponse;
 import com.example.mealupp.exception.InvalidCredentialsException;
 import com.example.mealupp.model.StaffMember;
 import com.example.mealupp.repository.StaffMemberRepository;
+import com.example.mealupp.security.JwtService;
 import com.example.mealupp.security.StaffPrincipal;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,8 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
- * HU-05: el personal registrado inicia sesión con usuario y contraseña y recibe un token que vence
- * después de mealup.staff.token-hours. Corrige DEF-01: ya no se usa HTTP Basic.
+ * Inicio de sesión del personal con usuario y contraseña. Devuelve un token JWT firmado que vence
+ * después de mealup.staff.token-hours. El servidor no guarda sesiones; solo recuerda, hasta que
+ * venzan, los tokens de quienes cerraron sesión.
  */
 @Service
 public class StaffAuthService {
@@ -29,20 +30,20 @@ public class StaffAuthService {
   private final StaffMemberRepository staffRepository;
   private final PasswordEncoder passwordEncoder;
   private final Clock clock;
+  private final JwtService jwtService;
   private final Duration tokenDuration;
-  private final SecureRandom random = new SecureRandom();
-  private final Map<String, Session> sessions = new ConcurrentHashMap<>();
-
-  private record Session(String username, LocalDateTime expiresAt) {}
+  private final Map<String, Instant> revoked = new ConcurrentHashMap<>();
 
   public StaffAuthService(
       StaffMemberRepository staffRepository,
       PasswordEncoder passwordEncoder,
       Clock clock,
+      JwtService jwtService,
       @Value("${mealup.staff.token-hours}") long tokenHours) {
     this.staffRepository = staffRepository;
     this.passwordEncoder = passwordEncoder;
     this.clock = clock;
+    this.jwtService = jwtService;
     this.tokenDuration = Duration.ofHours(tokenHours);
   }
 
@@ -53,36 +54,30 @@ public class StaffAuthService {
             .filter(StaffMember::isActive)
             .filter(m -> passwordEncoder.matches(password, m.getPasswordHash()))
             .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
-    String token = newToken();
-    LocalDateTime expiresAt = LocalDateTime.now(clock).plus(tokenDuration);
-    sessions.put(token, new Session(member.getUsername(), expiresAt));
+    Instant now = clock.instant();
+    Instant expiresAt = now.plus(tokenDuration);
+    String token = jwtService.generate(member.getUsername(), now, expiresAt);
     return new LoginResponse(
-        token, expiresAt, member.getFullName(), member.getRole(), member.getRole().sections());
+        token,
+        LocalDateTime.ofInstant(expiresAt, clock.getZone()),
+        member.getFullName(),
+        member.getRole(),
+        member.getRole().sections());
   }
 
   /** El rol se lee de la base de datos en cada petición, así un cambio de rol aplica de una vez. */
   public Optional<StaffPrincipal> findPrincipalByToken(String token) {
-    Session session = sessions.get(token);
-    if (session == null) {
-      return Optional.empty();
-    }
-    if (!LocalDateTime.now(clock).isBefore(session.expiresAt())) {
-      sessions.remove(token);
-      return Optional.empty();
-    }
-    return staffRepository
-        .findByUsername(session.username())
+    return jwtService
+        .parse(token, clock.instant())
+        .filter(claims -> !revoked.containsKey(claims.id()))
+        .flatMap(claims -> staffRepository.findByUsername(claims.subject()))
         .filter(StaffMember::isActive)
-        .map(m -> new StaffPrincipal(m.getUsername(), m.getRole()));
+        .map(member -> new StaffPrincipal(member.getUsername(), member.getRole()));
   }
 
   public void logout(String token) {
-    sessions.remove(token);
-  }
-
-  private String newToken() {
-    byte[] bytes = new byte[32];
-    random.nextBytes(bytes);
-    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    Instant now = clock.instant();
+    jwtService.parse(token, now).ifPresent(claims -> revoked.put(claims.id(), claims.expiresAt()));
+    revoked.values().removeIf(expiresAt -> !expiresAt.isAfter(now));
   }
 }

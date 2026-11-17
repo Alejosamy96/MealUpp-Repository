@@ -2,6 +2,7 @@ package com.example.mealupp.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -27,5 +28,40 @@ class OrderStatusTest {
   })
   void cp15_transitionTable(OrderStatus current, OrderStatus next, boolean expected) {
     assertThat(current.canTransitionTo(next)).isEqualTo(expected);
+  }
+
+  /** Estados nuevos del pago en línea. */
+  @ParameterizedTest(name = "{0} -> {1} permitido={2}")
+  @CsvSource({
+    "PENDING_PAYMENT, PENDING,          true",
+    "PENDING_PAYMENT, EXPIRED,          true",
+    "PENDING_PAYMENT, CANCELLED,        true",
+    "PENDING_PAYMENT, IN_PREPARATION,   false",
+    "PENDING_PAYMENT, DELIVERED,        false",
+    "PENDING,         PENDING_PAYMENT,  false",
+    "PENDING,         EXPIRED,          false",
+    "IN_PREPARATION,  EXPIRED,          false",
+    "EXPIRED,         PENDING,          false",
+    "EXPIRED,         PENDING_PAYMENT,  false",
+    "EXPIRED,         CANCELLED,        false"
+  })
+  void paymentStatesTransitionTable(OrderStatus current, OrderStatus next, boolean expected) {
+    assertThat(current.canTransitionTo(next)).isEqualTo(expected);
+  }
+
+  @Test
+  void finalStatesAreDeliveredCancelledAndExpired() {
+    assertThat(OrderStatus.values())
+        .filteredOn(OrderStatus::isFinal)
+        .containsExactlyInAnyOrder(
+            OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.EXPIRED);
+  }
+
+  @Test
+  void onlyConfirmedOrdersCountForTheDailyTotal() {
+    assertThat(OrderStatus.values())
+        .filteredOn(OrderStatus::countsForTotals)
+        .containsExactlyInAnyOrder(
+            OrderStatus.PENDING, OrderStatus.IN_PREPARATION, OrderStatus.DELIVERED);
   }
 }

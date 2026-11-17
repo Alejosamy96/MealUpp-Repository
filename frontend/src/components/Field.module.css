@@ -1,0 +1,19 @@
+.field { display: grid; gap: 6px; }
+.label { font-weight: 700; font-size: var(--fs-sm); color: var(--color-text); }
+.required { color: var(--color-terracotta-dark); }
+.control {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-sand);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.control:hover { border-color: #d4bc9f; }
+.control:focus-visible { border-color: var(--color-terracotta); box-shadow: var(--focus-ring); outline: none; }
+.control[aria-invalid="true"] { border-color: var(--color-danger); }
+.textarea { min-height: 84px; resize: vertical; }
+.hint { font-size: var(--fs-xs); color: var(--color-text-muted); }
+.error { font-size: var(--fs-sm); color: var(--color-danger); font-weight: 600; }

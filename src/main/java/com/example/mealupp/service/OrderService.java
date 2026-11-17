@@ -1,15 +1,21 @@
 package com.example.mealupp.service;
 
 import com.example.mealupp.config.OrderRulesProperties;
+import com.example.mealupp.config.PaymentProperties;
 import com.example.mealupp.dto.CreateOrderRequest;
+import com.example.mealupp.dto.CreatedOrderResponse;
 import com.example.mealupp.dto.DailyOrdersResponse;
 import com.example.mealupp.dto.OrderResponse;
+import com.example.mealupp.dto.OrderTrackingResponse;
 import com.example.mealupp.exception.BusinessRuleException;
+import com.example.mealupp.exception.ForbiddenActionException;
 import com.example.mealupp.exception.NotFoundException;
+import com.example.mealupp.integration.notification.KitchenNotifier;
 import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.Dish;
 import com.example.mealupp.model.Order;
 import com.example.mealupp.model.OrderStatus;
+import com.example.mealupp.model.StaffRole;
 import com.example.mealupp.repository.DishRepository;
 import com.example.mealupp.repository.OrderRepository;
 import java.time.Clock;
@@ -20,34 +26,50 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** HU-02, HU-03 y HU-04: registrar, consultar y actualizar pedidos. */
+/** Pedidos: crearlos, consultarlos y cambiar su estado. */
 @Service
 public class OrderService {
 
   private final OrderRepository orderRepository;
   private final DishRepository dishRepository;
   private final OrderRulesProperties rules;
+  private final PaymentProperties paymentProperties;
   private final Clock clock;
+  private final PaymentService paymentService;
+  private final OrderConfirmationService confirmationService;
+  private final KitchenTicketService ticketService;
+  private final KitchenNotifier notifier;
 
   public OrderService(
       OrderRepository orderRepository,
       DishRepository dishRepository,
       OrderRulesProperties rules,
-      Clock clock) {
+      PaymentProperties paymentProperties,
+      Clock clock,
+      PaymentService paymentService,
+      OrderConfirmationService confirmationService,
+      KitchenTicketService ticketService,
+      KitchenNotifier notifier) {
     this.orderRepository = orderRepository;
     this.dishRepository = dishRepository;
     this.rules = rules;
+    this.paymentProperties = paymentProperties;
     this.clock = clock;
+    this.paymentService = paymentService;
+    this.confirmationService = confirmationService;
+    this.ticketService = ticketService;
+    this.notifier = notifier;
   }
 
-  // ---------- HU-02 ----------
+  // ---------- Crear un pedido ----------
 
   @Transactional
-  public OrderResponse createOrder(CreateOrderRequest request) {
+  public CreatedOrderResponse createOrder(CreateOrderRequest request) {
     LocalDateTime now = LocalDateTime.now(clock);
     validateCutoff(now.toLocalTime());
     validateQuantity(request.quantity());
     validateDeliveryTime(request.deliveryTime());
+    validateDailyLimit(now.toLocalDate());
     Dish dish = findAvailableDish(request.dishId());
 
     Order order =
@@ -59,7 +81,17 @@ public class OrderService {
             request.deliveryTime(),
             request.deliveryZone(),
             request.deliveryDetail().trim());
-    return OrderResponse.from(orderRepository.save(order));
+    order.setCreatedAt(now);
+
+    if (paymentProperties.required()) {
+      order.setStatus(OrderStatus.PENDING_PAYMENT);
+      Order saved = orderRepository.save(order);
+      String paymentUrl = paymentService.startPayment(saved).paymentUrl();
+      return CreatedOrderResponse.from(saved, paymentUrl);
+    }
+    Order saved = orderRepository.save(order);
+    confirmationService.confirm(saved);
+    return CreatedOrderResponse.from(saved, null);
   }
 
   private void validateCutoff(LocalTime now) {
@@ -86,6 +118,16 @@ public class OrderService {
     }
   }
 
+  private void validateDailyLimit(LocalDate today) {
+    long taken =
+        orderRepository.countByOrderDateAndStatusNotIn(
+            today, List.of(OrderStatus.CANCELLED, OrderStatus.EXPIRED));
+    if (taken >= rules.maxPerDay()) {
+      throw new BusinessRuleException(
+          "Ya se alcanzó el máximo de " + rules.maxPerDay() + " pedidos para hoy");
+    }
+  }
+
   private Dish findAvailableDish(Long dishId) {
     Dish dish =
         dishRepository
@@ -97,7 +139,7 @@ public class OrderService {
     return dish;
   }
 
-  // ---------- HU-03 ----------
+  // ---------- Consultar ----------
 
   @Transactional(readOnly = true)
   public DailyOrdersResponse getDailyOrders(DeliveryZone zone) {
@@ -108,17 +150,32 @@ public class OrderService {
             : orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(today, zone);
     int totalLunches =
         orders.stream()
-            .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
+            .filter(o -> o.getStatus().countsForTotals())
             .mapToInt(Order::getQuantity)
             .sum();
     return new DailyOrdersResponse(
         today, totalLunches, orders.stream().map(OrderResponse::from).toList());
   }
 
-  // ---------- HU-04 ----------
+  /** El cliente consulta su pedido con el código de acceso que recibió al crearlo. */
+  @Transactional(readOnly = true)
+  public OrderTrackingResponse track(Long orderId, String accessCode) {
+    return orderRepository
+        .findById(orderId)
+        .filter(order -> PaymentService.codeMatches(order.getAccessCode(), accessCode))
+        .map(OrderTrackingResponse::from)
+        .orElseThrow(() -> new NotFoundException("El pedido no existe"));
+  }
 
+  // ---------- Cambiar el estado ----------
+
+  /**
+   * Cambia el estado de un pedido. Cada rol solo puede hacer los cambios que le corresponden:
+   * cocina pasa a preparación, entrega marca como entregado y caja cancela.
+   */
   @Transactional
-  public OrderResponse updateStatus(Long orderId, OrderStatus newStatus) {
+  public OrderResponse updateStatus(
+      Long orderId, OrderStatus newStatus, StaffRole role, String username) {
     Order order =
         orderRepository
             .findById(orderId)
@@ -130,7 +187,18 @@ public class OrderService {
     if (!current.canTransitionTo(newStatus)) {
       throw new BusinessRuleException("No se puede pasar de " + current + " a " + newStatus);
     }
+    if (!role.canMove(current, newStatus)) {
+      throw new ForbiddenActionException(
+          "El rol " + role + " no puede pasar un pedido de " + current + " a " + newStatus);
+    }
     order.setStatus(newStatus);
-    return OrderResponse.from(orderRepository.save(order));
+    Order saved = orderRepository.save(order);
+    if (newStatus == OrderStatus.IN_PREPARATION) {
+      ticketService.acknowledge(saved, username);
+    }
+    ticketService.viewFor(saved).ifPresent(notifier::ticketUpdated);
+    OrderResponse response = OrderResponse.from(saved);
+    notifier.orderChanged(response);
+    return response;
   }
 }
