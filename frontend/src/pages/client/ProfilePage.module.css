@@ -1,0 +1,47 @@
+.page { display: grid; gap: var(--space-5); padding-top: var(--space-3); }
+
+.identity { display: flex; align-items: center; gap: var(--space-4); }
+.avatar {
+  flex: none; display: grid; place-items: center;
+  width: 92px; height: 92px; border-radius: 50%;
+  background: var(--color-olive); color: var(--color-card);
+  overflow: hidden;
+}
+.avatar svg { margin-top: 14px; width: 66px; height: 66px; }
+.who { display: grid; gap: 2px; min-width: 0; }
+.name { font-size: 1.3rem; font-weight: 800; color: var(--color-text); overflow-wrap: anywhere; }
+.email { color: var(--color-text-muted); overflow-wrap: anywhere; }
+.edit {
+  display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px;
+  color: var(--color-olive); font-size: var(--fs-sm); font-weight: 600;
+}
+
+.options { list-style: none; margin: 0; padding: 0 var(--space-3); }
+.options li + li { border-top: 1px solid var(--color-sand); }
+.option {
+  width: 100%;
+  display: grid; grid-template-columns: 28px 1fr 20px; align-items: center; gap: var(--space-3);
+  padding: 16px var(--space-1);
+  background: none; border: 0; text-align: left; cursor: pointer;
+  color: var(--color-text); text-decoration: none; font-weight: 600;
+}
+.option:hover:not(:disabled) { color: var(--color-olive); }
+.option:disabled { color: var(--color-text-muted); cursor: not-allowed; }
+.option > svg:first-child { color: var(--color-olive); }
+.option span { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.confirm { padding: var(--space-3) var(--space-1); display: grid; gap: var(--space-3); font-size: var(--fs-sm); }
+.confirmActions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+.banner {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-5) var(--space-5);
+  background: #e7e8d6; border: 1px solid #d9dcc2; border-radius: var(--radius-lg);
+  color: var(--color-text);
+}
+.banner p { max-width: 24ch; }
+.leaf { color: var(--color-olive); flex: none; }
+.leafBig { color: var(--color-olive); margin-left: auto; opacity: 0.85; transform: rotate(18deg); }
+
+.staff { text-align: center; font-size: var(--fs-sm); color: var(--color-text-muted); }
