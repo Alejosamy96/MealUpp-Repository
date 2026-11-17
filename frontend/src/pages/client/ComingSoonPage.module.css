@@ -1,0 +1,6 @@
+.back {
+  display: inline-flex; align-items: center; gap: 4px; margin-bottom: var(--space-3);
+  color: var(--color-text-muted); text-decoration: none; font-weight: 600; font-size: var(--fs-sm);
+}
+.back:hover { color: var(--color-olive); }
+.card { padding: var(--space-5); display: grid; gap: var(--space-3); justify-items: start; color: var(--color-text-muted); }

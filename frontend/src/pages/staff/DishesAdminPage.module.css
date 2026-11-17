@@ -1,0 +1,10 @@
+.form { display: grid; gap: var(--space-3); }
+.formActions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.dishHead { display: grid; grid-template-columns: 72px 1fr auto; gap: var(--space-3); align-items: start; }
+.thumb { width: 72px; height: 72px; border-radius: var(--radius-sm); }
+.dishInfo { display: grid; gap: 2px; min-width: 0; }
+.price { font-weight: 800; color: var(--color-olive); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.soldOut { opacity: 0.8; background: #f7f2ea; }
+.createCard { margin-bottom: var(--space-4); max-width: 520px; }
+.createTitle { font-size: 1.1rem; }

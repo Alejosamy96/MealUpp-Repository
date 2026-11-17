@@ -1,0 +1,57 @@
+/* Tokens de diseño de MealUp: el único lugar donde viven los colores, radios y sombras. */
+:root {
+  /* Paleta */
+  --color-olive: #4f5a36;          /* primario: títulos, pestaña activa */
+  --color-olive-dark: #3d4629;
+  --color-olive-soft: #e3e6d6;
+  --color-terracotta: #c9683d;     /* acento: botones de acción */
+  --color-terracotta-dark: #ad5530;
+  --color-terracotta-soft: #f6e3d8;
+  --color-cream: #f4eee2;          /* fondo general */
+  --color-sand: #e6d4bf;           /* bordes sutiles, fondo del logo */
+  --color-sand-light: #efe4d6;
+  --color-card: #fdf9f3;
+  --color-text: #2f3424;
+  --color-text-muted: #6d7562;     /* gris verdoso suave */
+  --color-white: #ffffff;
+  --color-danger: #a93a2a;
+  --color-danger-soft: #f8e1dc;
+
+  /* Chips de estado */
+  --chip-green-bg: #dde8c9;  --chip-green-fg: #3e5a1f;
+  --chip-blue-bg: #d9e6f2;   --chip-blue-fg: #2c4f72;
+  --chip-tan-bg: #ecdcc5;    --chip-tan-fg: #6e4f2a;
+  --chip-amber-bg: #f8e6c4;  --chip-amber-fg: #7a5310;
+  --chip-red-bg: #f4dad4;    --chip-red-fg: #8c2f22;
+  --chip-gray-bg: #e6e3dc;   --chip-gray-fg: #5c5a53;
+
+  /* Tipografía */
+  --font-sans: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.6rem;
+  --fs-hero: 2.1rem;
+
+  /* Forma */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --shadow-card: 0 2px 10px rgba(79, 90, 54, 0.07);
+  --shadow-raised: 0 8px 24px rgba(79, 90, 54, 0.14);
+  --focus-ring: 0 0 0 3px rgba(201, 104, 61, 0.45);
+
+  /* Espacio y medidas */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --header-h: 64px;
+  --bottomnav-h: 68px;
+  --content-max: 560px;
+  --staff-max: 1100px;
+}

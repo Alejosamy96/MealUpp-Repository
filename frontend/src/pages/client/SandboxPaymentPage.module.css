@@ -1,0 +1,7 @@
+.page { display: grid; gap: var(--space-4); }
+.card { padding: var(--space-4); display: grid; gap: 4px; }
+.muted { color: var(--color-text-muted); font-size: var(--fs-sm); }
+.dish { font-weight: 800; font-size: 1.1rem; }
+.total { font-size: var(--fs-xl); font-weight: 800; color: var(--color-olive); margin-top: var(--space-2); }
+.actions { display: grid; gap: var(--space-3); }
+.reference { font-size: var(--fs-xs); color: var(--color-text-muted); text-align: center; overflow-wrap: anywhere; }

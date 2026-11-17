@@ -1,0 +1,23 @@
+.list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.tab, .active {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 40px; padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-sand);
+  font-size: var(--fs-sm); font-weight: 600;
+  cursor: pointer;
+}
+.tab { background: var(--color-sand-light); color: var(--color-text); }
+.tab:hover { background: var(--color-sand); }
+.active { background: var(--color-olive); border-color: var(--color-olive); color: var(--color-white); font-weight: 800; }
+.count {
+  min-width: 20px; padding: 0 6px; border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.25); font-size: var(--fs-xs);
+}
+.tab .count { background: var(--color-sand); }
