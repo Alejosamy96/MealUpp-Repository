@@ -129,7 +129,12 @@ Con `PAYMENT_PROVIDER=sandbox` no se cobra nada. `paymentUrl` apunta a una pági
 
 Estas dos rutas existen solo si `SANDBOX_ENABLED=true`. En producción se apagan.
 
-### Pasarela real (cuando se elija el proveedor)
+### Mercado Pago (`PAYMENT_PROVIDER=mercadopago`)
+Al crear el pedido, el backend crea una preferencia de Checkout Pro y devuelve su dirección en `paymentUrl`; el frontend lleva al cliente allí. Al terminar, Mercado Pago lo devuelve a `FRONTEND_URL/pedido/{id}` y avisa por webhook a:
+
+`POST /api/payments/mercadopago/webhook?data.id=...&type=payment` con los encabezados `x-signature` (`ts=...,v1=...`) y `x-request-id`. El backend valida la firma con `MERCADOPAGO_WEBHOOK_SECRET`, consulta el pago en la API de Mercado Pago y aplica el resultado: `approved` confirma el pedido; `rejected` y `cancelled` rechazan el intento; los demás estados se ignoran. Responde `200`.
+
+### Otra pasarela
 Se escribe un adaptador nuevo en el backend y el frontend no cambia. El aviso de la pasarela llega a:
 
 `POST /api/payments/webhook` con el encabezado `X-Signature` = HMAC-SHA256 en hexadecimal del cuerpo, con la clave `PAYMENT_WEBHOOK_SECRET`.
@@ -285,7 +290,11 @@ Si el WebSocket no llega a conectarse, la pantalla puede consultar `GET /api/sta
 | `PAYMENT_WEBHOOK_SECRET` | Firma de los avisos de la pasarela | Sí |
 | `CORS_ALLOWED_ORIGINS` | Dominios del frontend, separados por coma | No (por defecto `localhost:5173` y `:3000`) |
 | `PAYMENTS_REQUIRED` | `true` exige pago en línea; `false` confirma el pedido al crearlo | No (`true`) |
-| `PAYMENT_PROVIDER` | Proveedor de la pasarela (hoy solo `sandbox`) | No |
+| `PAYMENT_PROVIDER` | Proveedor de la pasarela: `sandbox` (simulada) o `mercadopago` | No (`sandbox`) |
+| `MERCADOPAGO_ACCESS_TOKEN` | Credencial privada de la aplicación de Mercado Pago (`TEST-...` en pruebas) | Solo con `mercadopago` |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Clave secreta de los webhooks, la que muestra el panel de Mercado Pago | Solo con `mercadopago` |
+| `MERCADOPAGO_NOTIFICATION_URL` | Dirección pública HTTPS del webhook (`.../api/payments/mercadopago/webhook`) | Solo con `mercadopago` |
+| `FRONTEND_URL` | Dirección del frontend, a donde vuelve el cliente después de pagar | No (`http://localhost:5173`) |
 | `SANDBOX_ENABLED` | Activa las rutas de la pasarela simulada | No (`true`; apagar en producción) |
 | `SANDBOX_CHECKOUT_URL` | Página del frontend para el pago simulado | No |
 | `STORAGE_TYPE` | `local` (carpeta del servidor) o `s3` | No (`local`) |

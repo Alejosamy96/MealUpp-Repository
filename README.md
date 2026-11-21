@@ -8,7 +8,7 @@ MealUpp es una startup con la intención de facilitar la gestión de restaurante
 |---|---|
 | Menú y fotos | Menú público, administración de platos y foto de cada plato (se guardan reducidas, en dos tamaños) |
 | Pedidos | Crear un pedido con sus reglas (hora límite, cantidad, hora de entrega, máximo de 100 por día), consultarlo con un código y seguir su estado |
-| Pagos | Pago en línea con webhook firmado, reintentos y vencimiento a los 15 minutos. Hoy con una pasarela simulada; el proveedor real se conecta con un adaptador |
+| Pagos | Pago en línea con webhook firmado, reintentos y vencimiento a los 15 minutos. Con pasarela simulada (`sandbox`) o con Mercado Pago (Checkout Pro, `PAYMENT_PROVIDER=mercadopago`) |
 | Comandas | Cuando un pedido se confirma, la cocina recibe su comanda por WebSocket, en tiempo real |
 | Personal | Inicio de sesión con token JWT, cuatro roles (administradora, cocina, caja y entrega), alta y baja de cuentas |
 

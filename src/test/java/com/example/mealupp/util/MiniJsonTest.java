@@ -76,4 +76,46 @@ class MiniJsonTest {
     assertThat(MiniJson.parseFlat(MiniJson.write(map)))
         .containsEntry("nombre", "Pasta \"Alfredo\"\ncon \\ barra");
   }
+
+  @Test
+  void readsNestedJson() {
+    Object tree =
+        MiniJson.parseTree("{\"a\":{\"b\":[1,2.5,\"x\",true,false,null,{\"c\":\"d\"}]},\"e\":[]}");
+
+    assertThat(tree).isInstanceOf(Map.class);
+    Map<?, ?> root = (Map<?, ?>) tree;
+    assertThat(root.get("e")).isEqualTo(List.of());
+    List<?> items = (List<?>) ((Map<?, ?>) root.get("a")).get("b");
+    assertThat(items).hasSize(7);
+    assertThat(items.get(0)).isEqualTo(new BigDecimal("1"));
+    assertThat(items.get(1)).isEqualTo(new BigDecimal("2.5"));
+    assertThat(items.get(2)).isEqualTo("x");
+    assertThat(items.get(3)).isEqualTo(true);
+    assertThat(items.get(4)).isEqualTo(false);
+    assertThat(items.get(5)).isNull();
+    assertThat(((Map<?, ?>) items.get(6)).get("c")).isEqualTo("d");
+  }
+
+  @Test
+  void readsTopLevelScalarsAndEmptyContainers() {
+    assertThat(MiniJson.parseTree("\"hola\"")).isEqualTo("hola");
+    assertThat(MiniJson.parseTree(" 12 ")).isEqualTo(new BigDecimal("12"));
+    assertThat(MiniJson.parseTree("{}")).isEqualTo(Map.of());
+    assertThat(MiniJson.parseTree("[ ]")).isEqualTo(List.of());
+  }
+
+  @Test
+  void rejectsBrokenNestedJson() {
+    assertThatThrownBy(() -> MiniJson.parseTree("")).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> MiniJson.parseTree("{\"a\":1} x"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> MiniJson.parseTree("{\"a\":1 \"b\":2}"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> MiniJson.parseTree("[1 2]"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> MiniJson.parseTree("[1,"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> MiniJson.parseTree("nulo"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }
