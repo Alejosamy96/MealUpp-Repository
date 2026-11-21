@@ -28,11 +28,13 @@ public enum StaffRole {
   public boolean canMove(OrderStatus from, OrderStatus to) {
     return switch (this) {
       case ADMIN -> true;
-      case KITCHEN -> from == OrderStatus.PENDING && to == OrderStatus.IN_PREPARATION;
+      case KITCHEN ->
+          (from == OrderStatus.PENDING && to == OrderStatus.IN_PREPARATION)
+              || (from == OrderStatus.IN_PREPARATION && to == OrderStatus.READY);
       case CASHIER ->
           (from == OrderStatus.PENDING || from == OrderStatus.PENDING_PAYMENT)
               && to == OrderStatus.CANCELLED;
-      case DELIVERY -> from == OrderStatus.IN_PREPARATION && to == OrderStatus.DELIVERED;
+      case DELIVERY -> from == OrderStatus.READY && to == OrderStatus.DELIVERED;
     };
   }
 }

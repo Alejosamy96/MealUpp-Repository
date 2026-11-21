@@ -7,6 +7,7 @@ export const STATUS_INFO: Record<OrderStatus, { label: string; tone: ChipTone }>
   PENDING_PAYMENT: { label: "Pendiente de pago", tone: "amber" },
   PENDING: { label: "Reservada", tone: "green" },
   IN_PREPARATION: { label: "En preparación", tone: "blue" },
+  READY: { label: "Lista", tone: "green" },
   DELIVERED: { label: "Entregada", tone: "tan" },
   CANCELLED: { label: "Cancelada", tone: "red" },
   EXPIRED: { label: "Vencida", tone: "gray" },
@@ -39,6 +40,7 @@ export const SECTION_INFO: Record<StaffSection, { label: string; path: string }>
 /** Texto del botón para pasar un pedido al estado indicado. */
 export const ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
   IN_PREPARATION: "Empezar preparación",
+  READY: "Marcar listo",
   DELIVERED: "Marcar entregado",
   CANCELLED: "Cancelar pedido",
 };
@@ -52,18 +54,19 @@ export function allowedActions(role: StaffRole, status: OrderStatus): OrderStatu
   const valid: Partial<Record<OrderStatus, OrderStatus[]>> = {
     PENDING_PAYMENT: ["CANCELLED"],
     PENDING: ["IN_PREPARATION", "CANCELLED"],
-    IN_PREPARATION: ["DELIVERED"],
+    IN_PREPARATION: ["READY"],
+    READY: ["DELIVERED"],
   };
   const byRole = (to: OrderStatus): boolean => {
     switch (role) {
       case "ADMIN":
         return true;
       case "KITCHEN":
-        return status === "PENDING" && to === "IN_PREPARATION";
+        return (status === "PENDING" && to === "IN_PREPARATION") || (status === "IN_PREPARATION" && to === "READY");
       case "CASHIER":
         return (status === "PENDING" || status === "PENDING_PAYMENT") && to === "CANCELLED";
       case "DELIVERY":
-        return status === "IN_PREPARATION" && to === "DELIVERED";
+        return status === "READY" && to === "DELIVERED";
     }
   };
   return (valid[status] ?? []).filter(byRole);

@@ -18,6 +18,7 @@ import styles from "./OrderStatusPage.module.css";
 const STEPS: { status: OrderStatus; label: string }[] = [
   { status: "PENDING", label: "Reservada" },
   { status: "IN_PREPARATION", label: "En preparación" },
+  { status: "READY", label: "Lista" },
   { status: "DELIVERED", label: "Entregada" },
 ];
 
@@ -95,7 +96,7 @@ export function OrderStatusPage() {
   };
 
   const stepIndex = STEPS.findIndex((s) => s.status === order.status);
-  const confirmed = order.status === "PENDING" || order.status === "IN_PREPARATION" || order.status === "DELIVERED";
+  const confirmed = order.status === "PENDING" || order.status === "IN_PREPARATION" || order.status === "READY" || order.status === "DELIVERED";
 
   return (
     <div className={styles.page}>

@@ -379,10 +379,24 @@ class OrderServiceTest {
   }
 
   @Test
-  void role02_deliveryMarksAnOrderInPreparationAsDelivered() {
+  void role02b_kitchenMarksAnOrderInPreparationAsReady() {
     Order inPreparation =
         order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.IN_PREPARATION);
     when(orderRepository.findById(7L)).thenReturn(Optional.of(inPreparation));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    OrderResponse response =
+        serviceAt(LocalTime.of(11, 0))
+            .updateStatus(7L, OrderStatus.READY, StaffRole.KITCHEN, "cocina1");
+
+    assertThat(response.status()).isEqualTo(OrderStatus.READY);
+    verify(ticketService, never()).acknowledge(any(Order.class), any());
+  }
+
+  @Test
+  void role02_deliveryMarksAReadyOrderAsDelivered() {
+    Order ready = order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.READY);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(ready));
     when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
     OrderResponse response =

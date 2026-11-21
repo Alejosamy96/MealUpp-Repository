@@ -182,11 +182,27 @@ class OrderRolesApiIntegrationTest {
     KitchenTicket ticket = ticketRepository.findAll().get(0);
     assertThat(ticket.getStatus()).isEqualTo(TicketStatus.ACKNOWLEDGED);
     assertThat(ticket.getAcknowledgedBy().getUsername()).isEqualTo("cocina1");
+    // La comanda sigue en cocina hasta que la dejen lista.
+    mockMvc
+        .perform(get("/api/staff/kitchen/tickets").header("Authorization", kitchen))
+        .andExpect(jsonPath("$.length()").value(1));
+
+    // Entrega todavía no ve el pedido: cocina no lo ha dejado listo.
+    mockMvc
+        .perform(get("/api/staff/delivery/orders").header("Authorization", delivery))
+        .andExpect(jsonPath("$.length()").value(0));
+
+    // Mientras cocina no lo deje listo, entrega no ve nada.
+    mockMvc
+        .perform(get("/api/staff/delivery/orders").header("Authorization", delivery))
+        .andExpect(jsonPath("$.length()").value(0));
+    changeStatus(id, "READY", delivery, 403);
+    changeStatus(id, "READY", kitchen, 200);
     mockMvc
         .perform(get("/api/staff/kitchen/tickets").header("Authorization", kitchen))
         .andExpect(jsonPath("$.length()").value(0));
 
-    // Ahora entrega ve el pedido, con a quién y dónde, pero sin precios.
+    // Ahora sí lo ve entrega, con a quién y dónde, pero sin precios.
     mockMvc
         .perform(get("/api/staff/delivery/orders").header("Authorization", delivery))
         .andExpect(jsonPath("$.length()").value(1))
@@ -219,6 +235,7 @@ class OrderRolesApiIntegrationTest {
     String admin = token("staff", "test-password");
 
     changeStatus(id, "IN_PREPARATION", admin, 200);
+    changeStatus(id, "READY", admin, 200);
     changeStatus(id, "DELIVERED", admin, 200);
   }
 
@@ -226,6 +243,7 @@ class OrderRolesApiIntegrationTest {
   void deliveryCanFilterItsOrdersByZone() throws Exception {
     long id = createOrder();
     changeStatus(id, "IN_PREPARATION", token("staff", "test-password"), 200);
+    changeStatus(id, "READY", token("staff", "test-password"), 200);
     String delivery = token("reparto1", "clave-1234");
 
     mockMvc

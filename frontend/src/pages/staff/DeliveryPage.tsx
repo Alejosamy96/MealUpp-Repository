@@ -1,4 +1,4 @@
-// Entrega: pedidos en preparación, con a quién, dónde y a qué hora llevarlos.
+// Entrega: pedidos que cocina dejó listos, con a quién, dónde y a qué hora llevarlos.
 import { useState } from "react";
 import { staffApi } from "../../api/endpoints";
 import type { DeliveryZone } from "../../api/types";
@@ -19,7 +19,7 @@ export function DeliveryPage() {
 
   return (
     <>
-      <PageHeader icon="bike" title="Entrega" subtitle="Pedidos listos para llevar, en orden de hora." />
+      <PageHeader icon="bike" title="Entrega" subtitle="Pedidos que cocina ya dejó listos, en orden de hora." />
       <div className={s.toolbar}>
         <ZoneFilter value={zone} onChange={setZone} />
         <RefreshBar updatedAt={orders.updatedAt} loading={orders.loading} onRefresh={orders.reload} socket={socket} />

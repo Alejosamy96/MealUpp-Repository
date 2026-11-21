@@ -41,11 +41,16 @@ public class KitchenTicketService {
         .orElseGet(() -> ticketRepository.save(new KitchenTicket(order, LocalDateTime.now(clock))));
   }
 
-  /** Comandas que cocina todavía no ha tomado, de las más antiguas a las más nuevas. */
+  /**
+   * Comandas que siguen en cocina: pedidos reservados (por empezar) o en preparación (por dejar
+   * listos), de las más antiguas a las más nuevas.
+   */
   @Transactional(readOnly = true)
   public List<KitchenTicketView> pending() {
-    return ticketRepository.findByStatusOrderBySentAtAsc(TicketStatus.SENT).stream()
-        .filter(ticket -> ticket.getCustomerOrder().getStatus() == OrderStatus.PENDING)
+    return ticketRepository
+        .findByCustomerOrderStatusInOrderBySentAtAsc(
+            List.of(OrderStatus.PENDING, OrderStatus.IN_PREPARATION))
+        .stream()
         .map(KitchenTicketView::from)
         .toList();
   }
