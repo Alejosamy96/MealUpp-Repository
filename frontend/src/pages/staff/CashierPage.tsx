@@ -9,7 +9,7 @@ import { REFRESH_MS, RefreshBar, StatusActions, staffStyles as s } from "./share
 import styles from "./CashierPage.module.css";
 
 /** Pedidos confirmados que cuentan para el total (igual que OrderStatus.countsForTotals en el backend). */
-const COUNTS: OrderStatus[] = ["PENDING", "IN_PREPARATION", "DELIVERED"];
+const COUNTS: OrderStatus[] = ["PENDING", "IN_PREPARATION", "READY", "DELIVERED"];
 
 export function CashierPage() {
   const orders = useAsync((signal) => staffApi.cashierOrders(signal), [], { intervalMs: REFRESH_MS });

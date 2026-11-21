@@ -15,7 +15,12 @@ class OrderStatusTest {
     "PENDING,        CANCELLED,      true",
     "PENDING,        DELIVERED,      false",
     "PENDING,        PENDING,        false",
-    "IN_PREPARATION, DELIVERED,      true",
+    "IN_PREPARATION, READY,          true",
+    "IN_PREPARATION, DELIVERED,      false",
+    "READY,          DELIVERED,      true",
+    "READY,          IN_PREPARATION, false",
+    "READY,          CANCELLED,      false",
+    "PENDING,        READY,          false",
     "IN_PREPARATION, PENDING,        false",
     "IN_PREPARATION, CANCELLED,      false",
     "IN_PREPARATION, IN_PREPARATION, false",
@@ -62,6 +67,9 @@ class OrderStatusTest {
     assertThat(OrderStatus.values())
         .filteredOn(OrderStatus::countsForTotals)
         .containsExactlyInAnyOrder(
-            OrderStatus.PENDING, OrderStatus.IN_PREPARATION, OrderStatus.DELIVERED);
+            OrderStatus.PENDING,
+            OrderStatus.IN_PREPARATION,
+            OrderStatus.READY,
+            OrderStatus.DELIVERED);
   }
 }

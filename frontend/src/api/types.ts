@@ -5,6 +5,7 @@ export type OrderStatus =
   | "PENDING_PAYMENT"
   | "PENDING"
   | "IN_PREPARATION"
+  | "READY"
   | "DELIVERED"
   | "CANCELLED"
   | "EXPIRED";

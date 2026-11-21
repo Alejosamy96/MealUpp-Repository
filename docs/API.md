@@ -19,16 +19,16 @@ Esta es la guía para quien hace el frontend. Todo el backend está construido: 
 | Rol | Qué ve | Qué cambios de estado puede hacer |
 |---|---|---|
 | `ADMIN` | Todo | Cualquier cambio válido |
-| `KITCHEN` | Comandas y pedidos por preparar | `PENDING` → `IN_PREPARATION` |
+| `KITCHEN` | Comandas y pedidos por preparar | `PENDING` → `IN_PREPARATION` y `IN_PREPARATION` → `READY` |
 | `CASHIER` | Pedidos del día con su valor | `PENDING_PAYMENT` o `PENDING` → `CANCELLED` |
-| `DELIVERY` | Pedidos en preparación, con a quién y dónde | `IN_PREPARATION` → `DELIVERED` |
+| `DELIVERY` | Pedidos listos (`READY`), con a quién y dónde | `READY` → `DELIVERED` |
 
 El login devuelve `sections`: las opciones que debe mostrar el menú de esa persona (`pedidos`, `cocina`, `caja`, `entrega`, `menu`, `personal`).
 
 ### Estados de un pedido
 
 ```
-PENDING_PAYMENT ──pago aprobado──▶ PENDING ──▶ IN_PREPARATION ──▶ DELIVERED
+PENDING_PAYMENT ──pago aprobado──▶ PENDING ──▶ IN_PREPARATION ──▶ READY ──▶ DELIVERED
       │                               │
       ├──15 min sin pagar──▶ EXPIRED  └──▶ CANCELLED   (también desde PENDING_PAYMENT)
 ```
@@ -111,7 +111,7 @@ Con un código incorrecto responde `404` (igual que si no existiera).
 `arrived` es `true` cuando el cliente ya avisó su llegada.
 
 ### `POST /api/orders/{id}/arrived?code=ACCESSCODE`
-El cliente avisa que ya llegó. Reglas: el pedido debe ser de la zona `SHOPPING_CENTER`, estar en `PENDING` o `IN_PREPARATION`, y no haber avisado antes. Marca la llegada, notifica a cocina (`/topic/comandas`) y a entrega/caja/admin (`/topic/pedidos`) y devuelve el mismo cuerpo que `GET /api/orders/{id}`. Errores: `404` (pedido o código incorrecto), `400` (regla de negocio incumplida). Cocina y entrega ven el campo `customerArrived` en sus listados.
+El cliente avisa que ya llegó. Reglas: el pedido debe ser de la zona `SHOPPING_CENTER`, estar en `PENDING`, `IN_PREPARATION` o `READY`, y no haber avisado antes. Marca la llegada, notifica a cocina (`/topic/comandas`) y a entrega/caja/admin (`/topic/pedidos`) y devuelve el mismo cuerpo que `GET /api/orders/{id}`. Errores: `404` (pedido o código incorrecto), `400` (regla de negocio incumplida). Cocina y entrega ven el campo `customerArrived` en sus listados.
 
 ### `POST /api/orders/{id}/pay?code=ACCESSCODE`
 Nuevo intento de pago de un pedido que sigue en `PENDING_PAYMENT` (por ejemplo si el pago fue rechazado). Devuelve `{ "paymentUrl": "..." }`.
@@ -177,9 +177,9 @@ Con el token. Responde `204` y el token deja de servir.
 | `GET /api/staff/orders?zone=SHOPPING_CENTER` | `ADMIN` | `{ date, totalLunches, orders: [...] }`. `zone` es opcional. `totalLunches` cuenta solo pedidos confirmados |
 | `PATCH /api/staff/orders/{id}/status` con `{ "status": "IN_PREPARATION" }` | todos los roles, según la tabla de arriba | El pedido actualizado. `403` si el rol no puede hacer ese cambio; `400` si el cambio no es válido |
 | `GET /api/staff/kitchen/orders` | `KITCHEN`, `ADMIN` | `[{ id, dishName, quantity, deliveryTime, status }]` (sin datos del cliente) |
-| `GET /api/staff/kitchen/tickets` | `KITCHEN`, `ADMIN` | Comandas pendientes (ver WebSocket). Úsalo al abrir o reconectar la pantalla de cocina |
+| `GET /api/staff/kitchen/tickets` | `KITCHEN`, `ADMIN` | Comandas que siguen en cocina: pedidos `PENDING` o `IN_PREPARATION` (ver WebSocket). Úsalo al abrir o reconectar la pantalla de cocina |
 | `GET /api/staff/cashier/orders` | `CASHIER`, `ADMIN` | `[{ id, customerName, dishName, quantity, unitPrice, total, status }]` |
-| `GET /api/staff/delivery/orders?zone=...` | `DELIVERY`, `ADMIN` | `[{ id, customerName, dishName, quantity, deliveryTime, deliveryZone, deliveryDetail, status }]`, solo los que están en `IN_PREPARATION` |
+| `GET /api/staff/delivery/orders?zone=...` | `DELIVERY`, `ADMIN` | `[{ id, customerName, dishName, quantity, deliveryTime, deliveryZone, deliveryDetail, status }]`, solo los que están en `READY` (cocina ya los dejó listos) |
 
 Una persona que abre la pantalla de otro rol recibe `403` con "No tienes permiso para entrar a esta sección".
 
@@ -245,7 +245,7 @@ El cuerpo de cada mensaje es **texto JSON** (haz `JSON.parse(frame.body)`).
 { "event": "CREATED", "ticketId": 4, "orderId": 7, "dishName": "Pollo a la plancha",
   "quantity": 2, "deliveryTime": "12:30", "orderStatus": "PENDING", "ticketStatus": "SENT" }
 ```
-`event` es `CREATED` o `UPDATED`. Muestra la comanda mientras `orderStatus` sea `PENDING` o `IN_PREPARATION`, y quítala cuando sea `CANCELLED` o `DELIVERED`.
+`event` es `CREATED` o `UPDATED`. Muestra la comanda mientras `orderStatus` sea `PENDING` o `IN_PREPARATION`, y quítala cuando sea `READY`, `CANCELLED` o `DELIVERED`.
 
 `/topic/pedidos`:
 ```json

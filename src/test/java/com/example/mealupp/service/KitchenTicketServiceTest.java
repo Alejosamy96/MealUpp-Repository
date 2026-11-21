@@ -82,8 +82,8 @@ class KitchenTicketServiceTest {
   }
 
   @Test
-  void pendingOnlyListsTicketsOfOrdersThatAreStillWaitingForTheKitchen() {
-    Order cancelled =
+  void pendingListsTicketsOfOrdersStillInTheKitchen() {
+    Order cooking =
         new Order(
             order.getDish(),
             1,
@@ -92,15 +92,17 @@ class KitchenTicketServiceTest {
             LocalTime.of(13, 0),
             DeliveryZone.FURNITURE_STREET,
             "Local 3");
-    cancelled.setStatus(OrderStatus.CANCELLED);
-    when(ticketRepository.findByStatusOrderBySentAtAsc(TicketStatus.SENT))
-        .thenReturn(List.of(new KitchenTicket(order, NOW), new KitchenTicket(cancelled, NOW)));
+    cooking.setStatus(OrderStatus.IN_PREPARATION);
+    when(ticketRepository.findByCustomerOrderStatusInOrderBySentAtAsc(
+            List.of(OrderStatus.PENDING, OrderStatus.IN_PREPARATION)))
+        .thenReturn(List.of(new KitchenTicket(order, NOW), new KitchenTicket(cooking, NOW)));
 
     List<KitchenTicketView> pending = service.pending();
 
-    assertThat(pending).hasSize(1);
+    assertThat(pending).hasSize(2);
     assertThat(pending.get(0).dishName()).isEqualTo("Pollo a la plancha");
     assertThat(pending.get(0).quantity()).isEqualTo(2);
+    assertThat(pending.get(1).orderStatus()).isEqualTo(OrderStatus.IN_PREPARATION);
   }
 
   @Test

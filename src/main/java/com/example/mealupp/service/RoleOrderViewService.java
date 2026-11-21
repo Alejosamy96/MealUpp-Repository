@@ -42,7 +42,7 @@ public class RoleOrderViewService {
     return todayOrders().stream().map(CashierOrderView::from).toList();
   }
 
-  /** Entrega: pedidos de hoy listos para salir (en preparación), opcionalmente de una zona. */
+  /** Entrega: pedidos de hoy que cocina ya dejó listos, opcionalmente de una zona. */
   @Transactional(readOnly = true)
   public List<DeliveryOrderView> deliveryOrders(DeliveryZone zone) {
     List<Order> orders =
@@ -51,7 +51,7 @@ public class RoleOrderViewService {
             : orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(
                 LocalDate.now(clock), zone);
     return orders.stream()
-        .filter(o -> o.getStatus() == OrderStatus.IN_PREPARATION)
+        .filter(o -> o.getStatus() == OrderStatus.READY)
         .map(DeliveryOrderView::from)
         .toList();
   }

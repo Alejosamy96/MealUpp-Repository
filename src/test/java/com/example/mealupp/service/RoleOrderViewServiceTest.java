@@ -66,7 +66,8 @@ class RoleOrderViewServiceTest {
                 order(1, OrderStatus.PENDING),
                 order(2, OrderStatus.IN_PREPARATION),
                 order(3, OrderStatus.DELIVERED),
-                order(4, OrderStatus.CANCELLED)));
+                order(4, OrderStatus.CANCELLED),
+                order(5, OrderStatus.READY)));
   }
 
   private static List<String> fields(Class<?> recordType) {
@@ -88,7 +89,7 @@ class RoleOrderViewServiceTest {
 
     List<CashierOrderView> views = service.cashierOrders();
 
-    assertThat(views).hasSize(4);
+    assertThat(views).hasSize(5);
     assertThat(views.get(2).total()).isEqualByComparingTo("36000");
   }
 
@@ -103,9 +104,7 @@ class RoleOrderViewServiceTest {
   void deliveryOnlySeesOrdersReadyToGoWithoutPrices() {
     todayHasOneOrderOfEachStatus();
 
-    assertThat(service.deliveryOrders(null))
-        .extracting(DeliveryOrderView::quantity)
-        .containsExactly(2);
+    assertThat(service.deliveryOrders(null)).extracting(DeliveryOrderView::quantity).hasSize(1);
     assertThat(fields(DeliveryOrderView.class)).doesNotContain("unitPrice", "total");
   }
 

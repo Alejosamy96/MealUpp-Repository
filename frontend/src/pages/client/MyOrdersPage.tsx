@@ -74,7 +74,7 @@ export function MyOrdersPage() {
   grouped.proximas.sort((a, b) => (a.orderDate + a.deliveryTime).localeCompare(b.orderDate + b.deliveryTime));
   const visible = grouped[tab];
   const arrivable = grouped.proximas.filter(
-    (o) => o.deliveryZone === "SHOPPING_CENTER" && o.orderDate === today && (o.status === "PENDING" || o.status === "IN_PREPARATION"),
+    (o) => o.deliveryZone === "SHOPPING_CENTER" && o.orderDate === today && (o.status === "PENDING" || o.status === "IN_PREPARATION" || o.status === "READY"),
   );
 
   return (

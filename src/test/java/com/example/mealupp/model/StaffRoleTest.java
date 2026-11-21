@@ -38,12 +38,16 @@ class StaffRoleTest {
     "ADMIN,    IN_PREPARATION,  DELIVERED,      true",
     "KITCHEN,  PENDING,         IN_PREPARATION, true",
     "KITCHEN,  PENDING,         CANCELLED,      false",
+    "KITCHEN,  IN_PREPARATION,  READY,          true",
+    "KITCHEN,  READY,           DELIVERED,      false",
     "KITCHEN,  IN_PREPARATION,  DELIVERED,      false",
     "CASHIER,  PENDING,         CANCELLED,      true",
     "CASHIER,  PENDING_PAYMENT, CANCELLED,      true",
     "CASHIER,  PENDING,         IN_PREPARATION, false",
     "CASHIER,  IN_PREPARATION,  CANCELLED,      false",
-    "DELIVERY, IN_PREPARATION,  DELIVERED,      true",
+    "DELIVERY, READY,           DELIVERED,      true",
+    "DELIVERY, IN_PREPARATION,  DELIVERED,      false",
+    "DELIVERY, IN_PREPARATION,  READY,          false",
     "DELIVERY, PENDING,         IN_PREPARATION, false",
     "DELIVERY, PENDING,         CANCELLED,      false"
   })

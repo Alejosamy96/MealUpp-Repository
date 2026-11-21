@@ -186,9 +186,10 @@ public class OrderService {
           "El aviso de llegada solo está disponible para pedidos del centro comercial");
     }
     if (order.getStatus() != OrderStatus.PENDING
-        && order.getStatus() != OrderStatus.IN_PREPARATION) {
+        && order.getStatus() != OrderStatus.IN_PREPARATION
+        && order.getStatus() != OrderStatus.READY) {
       throw new BusinessRuleException(
-          "Solo se puede avisar la llegada de un pedido reservado o en preparación");
+          "Solo se puede avisar la llegada de un pedido reservado, en preparación o listo");
     }
     if (order.getArrivedAt() != null) {
       throw new BusinessRuleException("Ya avisaste tu llegada");
