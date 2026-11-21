@@ -2,12 +2,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../../api/client";
+import { publicApi } from "../../api/endpoints";
 import type { OrderStatus } from "../../api/types";
 import { Button, LinkButton } from "../../components/Button";
 import { DishImage } from "../../components/DishImage";
 import { Icon } from "../../components/Icon";
 import { Tabs } from "../../components/Tabs";
-import { ComingSoonBadge, EmptyState, Notice, PageHeader, StatusChip } from "../../components/ui";
+import { EmptyState, Notice, PageHeader, StatusChip } from "../../components/ui";
 import { FINAL_STATUSES } from "../../config/labels";
 import { formatDate, formatTime, nowInZone } from "../../lib/format";
 import { ordersStore, useStoredOrders, type StoredOrder } from "../../services/ordersStore";
@@ -34,6 +35,8 @@ export function MyOrdersPage() {
   const [tab, setTab] = useState<TabKey>("proximas");
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [arrivingId, setArrivingId] = useState<number | null>(null);
+  const [arrivalError, setArrivalError] = useState<string | null>(null);
   const today = nowInZone().date;
 
   const refreshActive = async () => {
@@ -44,6 +47,18 @@ export function MyOrdersPage() {
     const failed = results.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
     setError(failed ? errorMessage(failed.reason) : null);
     setRefreshing(false);
+  };
+
+  const notifyArrival = async (order: StoredOrder) => {
+    setArrivingId(order.id);
+    setArrivalError(null);
+    try {
+      ordersStore.applyTracking(await publicApi.notifyArrival(order.id, order.accessCode));
+    } catch (err) {
+      setArrivalError(errorMessage(err));
+    } finally {
+      setArrivingId(null);
+    }
   };
 
   useEffect(() => {
@@ -58,6 +73,9 @@ export function MyOrdersPage() {
   for (const o of orders) grouped[tabOf(o, today)].push(o);
   grouped.proximas.sort((a, b) => (a.orderDate + a.deliveryTime).localeCompare(b.orderDate + b.deliveryTime));
   const visible = grouped[tab];
+  const arrivable = grouped.proximas.filter(
+    (o) => o.deliveryZone === "SHOPPING_CENTER" && o.orderDate === today && (o.status === "PENDING" || o.status === "IN_PREPARATION"),
+  );
 
   return (
     <>
@@ -129,15 +147,30 @@ export function MyOrdersPage() {
             <Icon name="bell" size={26} className={styles.bell} />
             <div>
               <h2 id="arrival-title">¿Ya llegaste?</h2>
-              <p>Avísanos en la cafetería para que empiecen a emplatar tu almuerzo.</p>
+              <p>Avisa en la cafetería para que empiecen a emplatar tu almuerzo. Solo disponible para reservas del centro comercial.</p>
             </div>
           </div>
-          <Button variant="outline" block disabled aria-describedby="arrival-soon">
-            Notificar llegada
-          </Button>
-          <p id="arrival-soon" className={styles.soonRow}>
-            <ComingSoonBadge /> Esta función todavía no está disponible.
-          </p>
+          {arrivable.length === 0 ? (
+            <p className={styles.soonRow}>No tienes reservas del centro comercial para hoy.</p>
+          ) : (
+            <ul className={styles.list}>
+              {arrivable.map((o) => (
+                <li key={o.id} className={styles.arrivalRow}>
+                  <span>
+                    {o.dishName} · {formatTime(o.deliveryTime)}
+                  </span>
+                  {o.arrived ? (
+                    <span className={styles.soonRow}>¡Avisaste tu llegada!</span>
+                  ) : (
+                    <Button size="sm" loading={arrivingId === o.id} onClick={() => void notifyArrival(o)}>
+                      Ya llegué
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {arrivalError && <Notice tone="error">{arrivalError}</Notice>}
         </section>
       )}
 

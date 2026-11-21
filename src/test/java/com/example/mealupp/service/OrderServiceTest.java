@@ -481,4 +481,88 @@ class OrderServiceTest {
     assertThatThrownBy(() -> service.track(7L, "CODIGO-FALSO"))
         .isInstanceOf(NotFoundException.class);
   }
+
+  // ---------- Aviso de llegada ----------
+
+  @Test
+  void arr01_theCustomerOfTheShoppingCenterCanAnnounceArrivalOnce() {
+    Order reserved =
+        order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(reserved));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    var tracking = serviceAt(LocalTime.of(11, 45)).notifyArrival(7L, reserved.getAccessCode());
+
+    assertThat(tracking.arrived()).isTrue();
+    assertThat(reserved.getArrivedAt()).isEqualTo(LocalDateTime.of(TODAY, LocalTime.of(11, 45)));
+    verify(notifier).orderChanged(any(OrderResponse.class));
+  }
+
+  @Test
+  void arr02_anOrderInPreparationCanAlsoAnnounceArrival() {
+    Order preparing =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.IN_PREPARATION);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(preparing));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    var tracking = serviceAt(LocalTime.of(11, 45)).notifyArrival(7L, preparing.getAccessCode());
+
+    assertThat(tracking.arrived()).isTrue();
+  }
+
+  @Test
+  void arr03_theFurnitureStreetCannotAnnounceArrival() {
+    Order street =
+        order(1, LocalTime.of(12, 0), DeliveryZone.FURNITURE_STREET, OrderStatus.PENDING);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(street));
+    OrderService service = serviceAt(LocalTime.of(11, 45));
+    String code = street.getAccessCode();
+
+    assertThatThrownBy(() -> service.notifyArrival(7L, code))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("centro comercial");
+    assertThat(street.getArrivedAt()).isNull();
+    verify(notifier, never()).orderChanged(any());
+  }
+
+  @ParameterizedTest(name = "un pedido {0} no puede avisar llegada")
+  @ValueSource(strings = {"PENDING_PAYMENT", "DELIVERED", "CANCELLED", "EXPIRED"})
+  void arr04_onlyReservedOrPreparingOrdersCanAnnounceArrival(String status) {
+    Order other =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.valueOf(status));
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(other));
+    OrderService service = serviceAt(LocalTime.of(11, 45));
+    String code = other.getAccessCode();
+
+    assertThatThrownBy(() -> service.notifyArrival(7L, code))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("reservado");
+  }
+
+  @Test
+  void arr05_theArrivalCanOnlyBeAnnouncedOnce() {
+    Order reserved =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    reserved.setArrivedAt(LocalDateTime.of(TODAY, LocalTime.of(11, 40)));
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(reserved));
+    OrderService service = serviceAt(LocalTime.of(11, 45));
+    String code = reserved.getAccessCode();
+
+    assertThatThrownBy(() -> service.notifyArrival(7L, code))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("Ya avisaste");
+    verify(notifier, never()).orderChanged(any());
+  }
+
+  @Test
+  void arr06_aWrongCodeLooksLikeAnOrderThatDoesNotExist() {
+    Order reserved =
+        order(1, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    when(orderRepository.findById(7L)).thenReturn(Optional.of(reserved));
+    OrderService service = serviceAt(LocalTime.of(11, 45));
+
+    assertThatThrownBy(() -> service.notifyArrival(7L, "CODIGO-FALSO"))
+        .isInstanceOf(NotFoundException.class);
+    assertThat(reserved.getArrivedAt()).isNull();
+  }
 }

@@ -167,6 +167,39 @@ public class OrderService {
         .orElseThrow(() -> new NotFoundException("El pedido no existe"));
   }
 
+  // ---------- Aviso de llegada ----------
+
+  /**
+   * El cliente avisa que ya llegó a recoger. Solo vale para pedidos del centro comercial que están
+   * reservados o en preparación, y se puede avisar una sola vez. Se avisa a cocina (comanda) y a
+   * entrega, caja y administración (pedido).
+   */
+  @Transactional
+  public OrderTrackingResponse notifyArrival(Long orderId, String accessCode) {
+    Order order =
+        orderRepository
+            .findById(orderId)
+            .filter(found -> PaymentService.codeMatches(found.getAccessCode(), accessCode))
+            .orElseThrow(() -> new NotFoundException("El pedido no existe"));
+    if (order.getDeliveryZone() != DeliveryZone.SHOPPING_CENTER) {
+      throw new BusinessRuleException(
+          "El aviso de llegada solo está disponible para pedidos del centro comercial");
+    }
+    if (order.getStatus() != OrderStatus.PENDING
+        && order.getStatus() != OrderStatus.IN_PREPARATION) {
+      throw new BusinessRuleException(
+          "Solo se puede avisar la llegada de un pedido reservado o en preparación");
+    }
+    if (order.getArrivedAt() != null) {
+      throw new BusinessRuleException("Ya avisaste tu llegada");
+    }
+    order.setArrivedAt(LocalDateTime.now(clock));
+    Order saved = orderRepository.save(order);
+    ticketService.viewFor(saved).ifPresent(notifier::ticketUpdated);
+    notifier.orderChanged(OrderResponse.from(saved));
+    return OrderTrackingResponse.from(saved);
+  }
+
   // ---------- Cambiar el estado ----------
 
   /**

@@ -79,6 +79,8 @@ export interface OrderTrackingResponse {
   deliveryDetail: string;
   total: number;
   paymentPending: boolean;
+  /** El cliente avisó que ya llegó (solo pedidos del centro comercial). */
+  arrived: boolean;
 }
 
 export interface LoginResponse {
@@ -116,6 +118,7 @@ export interface KitchenTicket {
   deliveryTime: string;
   orderStatus: OrderStatus;
   ticketStatus: TicketStatus;
+  customerArrived: boolean;
 }
 
 export interface CashierOrder {
@@ -137,6 +140,7 @@ export interface DeliveryOrder {
   deliveryZone: DeliveryZone;
   deliveryDetail: string;
   status: OrderStatus;
+  customerArrived: boolean;
 }
 
 export interface StaffDish {

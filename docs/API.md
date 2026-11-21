@@ -105,8 +105,13 @@ Con un código incorrecto responde `404` (igual que si no existiera).
 ```json
 { "id": 7, "status": "PENDING", "dishName": "Pollo a la plancha", "quantity": 2,
   "deliveryTime": "12:00:00", "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12",
-  "total": 24000, "paymentPending": false }
+  "total": 24000, "paymentPending": false, "arrived": false }
 ```
+
+`arrived` es `true` cuando el cliente ya avisó su llegada.
+
+### `POST /api/orders/{id}/arrived?code=ACCESSCODE`
+El cliente avisa que ya llegó. Reglas: el pedido debe ser de la zona `SHOPPING_CENTER`, estar en `PENDING` o `IN_PREPARATION`, y no haber avisado antes. Marca la llegada, notifica a cocina (`/topic/comandas`) y a entrega/caja/admin (`/topic/pedidos`) y devuelve el mismo cuerpo que `GET /api/orders/{id}`. Errores: `404` (pedido o código incorrecto), `400` (regla de negocio incumplida). Cocina y entrega ven el campo `customerArrived` en sus listados.
 
 ### `POST /api/orders/{id}/pay?code=ACCESSCODE`
 Nuevo intento de pago de un pedido que sigue en `PENDING_PAYMENT` (por ejemplo si el pago fue rechazado). Devuelve `{ "paymentUrl": "..." }`.

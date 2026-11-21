@@ -30,6 +30,8 @@ export const publicApi = {
     request<OrderTrackingResponse>("GET", `/api/orders/${q(id)}?code=${q(code)}`, { signal }),
   retryPayment: (id: number, code: string) =>
     request<{ paymentUrl: string }>("POST", `/api/orders/${q(id)}/pay?code=${q(code)}`),
+  notifyArrival: (id: number, code: string) =>
+    request<OrderTrackingResponse>("POST", `/api/orders/${q(id)}/arrived?code=${q(code)}`),
   sandboxApprove: (reference: string) =>
     request<{ received: boolean }>("POST", `/api/payments/sandbox/${q(reference)}/approve`),
   sandboxDecline: (reference: string) =>

@@ -64,6 +64,9 @@ public class Order {
 
   private LocalDateTime createdAt;
 
+  /** Hora en que el cliente avisó que llegó a recoger (solo pedidos del centro comercial). */
+  private LocalDateTime arrivedAt;
+
   protected Order() {}
 
   public Order(
@@ -158,5 +161,13 @@ public class Order {
 
   public void setCreatedAt(LocalDateTime createdAt) {
     this.createdAt = createdAt;
+  }
+
+  public LocalDateTime getArrivedAt() {
+    return arrivedAt;
+  }
+
+  public void setArrivedAt(LocalDateTime arrivedAt) {
+    this.arrivedAt = arrivedAt;
   }
 }

@@ -21,6 +21,7 @@ interface TicketEvent {
   deliveryTime: string;
   orderStatus: OrderStatus;
   ticketStatus: KitchenTicket["ticketStatus"];
+  customerArrived: boolean;
 }
 
 const VISIBLE: OrderStatus[] = ["PENDING", "IN_PREPARATION"];
@@ -83,6 +84,7 @@ export function KitchenPage() {
                   </p>
                   <div className={styles.chips}>
                     {t.ticketStatus === "SENT" && t.orderStatus === "PENDING" && <Chip tone="amber">Nueva</Chip>}
+                    {t.customerArrived && <Chip tone="green">Cliente llegó</Chip>}
                     <StatusChip status={t.orderStatus} />
                   </div>
                 </div>
