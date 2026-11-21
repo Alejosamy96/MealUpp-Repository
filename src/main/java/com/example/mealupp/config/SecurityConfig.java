@@ -68,6 +68,7 @@ public class SecurityConfig {
                         HttpMethod.POST,
                         "/api/orders",
                         "/api/orders/*/pay",
+                        "/api/orders/*/arrived",
                         "/api/payments/webhook",
                         "/api/payments/mercadopago/webhook")
                     .permitAll()

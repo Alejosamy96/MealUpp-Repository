@@ -9,7 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Comanda tal como la ve la cocina: qué preparar, cuánto y para qué hora. Sin datos del cliente.
+ * Comanda tal como la ve la cocina: qué preparar, cuánto y para qué hora. Sin datos del cliente;
+ * solo se sabe si ya llegó a recoger (customerArrived).
  */
 public record KitchenTicketView(
     Long ticketId,
@@ -18,7 +19,8 @@ public record KitchenTicketView(
     int quantity,
     LocalTime deliveryTime,
     OrderStatus orderStatus,
-    TicketStatus ticketStatus) {
+    TicketStatus ticketStatus,
+    boolean customerArrived) {
 
   public static KitchenTicketView from(KitchenTicket ticket) {
     Order order = ticket.getCustomerOrder();
@@ -29,7 +31,8 @@ public record KitchenTicketView(
         order.getQuantity(),
         order.getDeliveryTime(),
         order.getStatus(),
-        ticket.getStatus());
+        ticket.getStatus(),
+        order.getArrivedAt() != null);
   }
 
   /** Datos del mensaje que se publica por WebSocket. "event" es CREATED o UPDATED. */
@@ -43,6 +46,7 @@ public record KitchenTicketView(
     map.put("deliveryTime", deliveryTime);
     map.put("orderStatus", orderStatus);
     map.put("ticketStatus", ticketStatus);
+    map.put("customerArrived", customerArrived);
     return map;
   }
 }

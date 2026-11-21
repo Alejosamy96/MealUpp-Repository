@@ -38,7 +38,8 @@ class WebSocketKitchenNotifierTest {
           2,
           LocalTime.of(12, 30),
           OrderStatus.PENDING,
-          TicketStatus.SENT);
+          TicketStatus.SENT,
+          false);
 
   @BeforeEach
   void setUp() {
@@ -55,7 +56,7 @@ class WebSocketKitchenNotifierTest {
         .isEqualTo(
             "{\"event\":\"CREATED\",\"ticketId\":4,\"orderId\":7,\"dishName\":\"Pollo a la plancha\","
                 + "\"quantity\":2,\"deliveryTime\":\"12:30\",\"orderStatus\":\"PENDING\","
-                + "\"ticketStatus\":\"SENT\"}");
+                + "\"ticketStatus\":\"SENT\",\"customerArrived\":false}");
   }
 
   @Test

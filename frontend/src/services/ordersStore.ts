@@ -20,6 +20,8 @@ export interface StoredOrder {
   deliveryDetail: string;
   total: number;
   status: OrderStatus;
+  /** El cliente ya avisó su llegada. */
+  arrived?: boolean;
   /** Referencia del pago (para la pasarela simulada). */
   paymentReference: string | null;
   paymentUrl: string | null;
@@ -100,6 +102,7 @@ export const ordersStore = {
           ? {
               ...o,
               status: t.status,
+              arrived: t.arrived,
               dishName: t.dishName,
               quantity: t.quantity,
               deliveryTime: t.deliveryTime,

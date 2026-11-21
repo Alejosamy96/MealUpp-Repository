@@ -14,7 +14,8 @@ public record DeliveryOrderView(
     LocalTime deliveryTime,
     DeliveryZone deliveryZone,
     String deliveryDetail,
-    OrderStatus status) {
+    OrderStatus status,
+    boolean customerArrived) {
 
   public static DeliveryOrderView from(Order order) {
     return new DeliveryOrderView(
@@ -25,6 +26,7 @@ public record DeliveryOrderView(
         order.getDeliveryTime(),
         order.getDeliveryZone(),
         order.getDeliveryDetail(),
-        order.getStatus());
+        order.getStatus(),
+        order.getArrivedAt() != null);
   }
 }

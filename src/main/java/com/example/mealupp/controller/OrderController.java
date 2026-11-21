@@ -43,6 +43,13 @@ public class OrderController {
     return orderService.track(id, code);
   }
 
+  /** El cliente avisa que ya llegó a recoger su pedido (solo centro comercial). */
+  @PostMapping("/{id}/arrived")
+  public OrderTrackingResponse arrived(
+      @PathVariable("id") Long id, @RequestParam("code") String code) {
+    return orderService.notifyArrival(id, code);
+  }
+
   /** Nuevo intento de pago de un pedido que sigue pendiente. */
   @PostMapping("/{id}/pay")
   public PaymentLinkResponse pay(@PathVariable("id") Long id, @RequestParam("code") String code) {

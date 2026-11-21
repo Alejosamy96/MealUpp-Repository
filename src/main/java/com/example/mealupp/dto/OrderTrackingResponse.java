@@ -16,7 +16,8 @@ public record OrderTrackingResponse(
     DeliveryZone deliveryZone,
     String deliveryDetail,
     BigDecimal total,
-    boolean paymentPending) {
+    boolean paymentPending,
+    boolean arrived) {
 
   public static OrderTrackingResponse from(Order order) {
     return new OrderTrackingResponse(
@@ -28,6 +29,7 @@ public record OrderTrackingResponse(
         order.getDeliveryZone(),
         order.getDeliveryDetail(),
         order.getTotal(),
-        order.getStatus() == OrderStatus.PENDING_PAYMENT);
+        order.getStatus() == OrderStatus.PENDING_PAYMENT,
+        order.getArrivedAt() != null);
   }
 }
