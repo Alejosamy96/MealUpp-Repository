@@ -68,7 +68,8 @@ public class SecurityConfig {
                         HttpMethod.POST,
                         "/api/orders",
                         "/api/orders/*/pay",
-                        "/api/payments/webhook")
+                        "/api/payments/webhook",
+                        "/api/payments/mercadopago/webhook")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/orders/*")
                     .permitAll()

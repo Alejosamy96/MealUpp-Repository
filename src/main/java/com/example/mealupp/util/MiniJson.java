@@ -1,7 +1,9 @@
 package com.example.mealupp.util;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,6 +20,23 @@ public final class MiniJson {
       throw new IllegalArgumentException("JSON vacío");
     }
     return new Parser(json).parseObject();
+  }
+
+  /**
+   * Lee cualquier JSON, incluso anidado. Devuelve mapas (objetos), listas (arreglos), textos,
+   * BigDecimal (números), booleanos o null.
+   */
+  public static Object parseTree(String json) {
+    if (json == null || json.isBlank()) {
+      throw new IllegalArgumentException("JSON vacío");
+    }
+    Parser parser = new Parser(json);
+    Object value = parser.parseTreeValue();
+    parser.skipWhitespace();
+    if (parser.pos != json.length()) {
+      throw new IllegalArgumentException("JSON con texto sobrante");
+    }
+    return value;
   }
 
   /** Escribe un valor como JSON: mapas, listas, textos, números, booleanos y nulos. */
@@ -126,6 +145,75 @@ public final class MiniJson {
       }
     }
 
+    Object parseTreeValue() {
+      skipWhitespace();
+      char c = peek();
+      if (c == '{') {
+        pos++;
+        Map<String, Object> result = new LinkedHashMap<>();
+        skipWhitespace();
+        if (peek() == '}') {
+          pos++;
+          return result;
+        }
+        while (true) {
+          skipWhitespace();
+          String key = parseString();
+          skipWhitespace();
+          expect(':');
+          result.put(key, parseTreeValue());
+          skipWhitespace();
+          char next = peek();
+          pos++;
+          if (next == '}') {
+            return result;
+          }
+          if (next != ',') {
+            throw new IllegalArgumentException("JSON inválido en la posición " + (pos - 1));
+          }
+        }
+      }
+      if (c == '[') {
+        pos++;
+        List<Object> result = new ArrayList<>();
+        skipWhitespace();
+        if (peek() == ']') {
+          pos++;
+          return result;
+        }
+        while (true) {
+          result.add(parseTreeValue());
+          skipWhitespace();
+          char next = peek();
+          pos++;
+          if (next == ']') {
+            return result;
+          }
+          if (next != ',') {
+            throw new IllegalArgumentException("JSON inválido en la posición " + (pos - 1));
+          }
+        }
+      }
+      if (c == '"') {
+        return parseString();
+      }
+      String literal = parseValue();
+      return switch (literal) {
+        case "true" -> Boolean.TRUE;
+        case "false" -> Boolean.FALSE;
+        case "null" -> null;
+        default -> parseNumber(literal);
+      };
+    }
+
+    private static BigDecimal parseNumber(String literal) {
+      try {
+        return new BigDecimal(literal);
+      } catch (NumberFormatException ex) {
+        throw new IllegalArgumentException("Valor JSON inválido: " + literal, ex);
+      }
+    }
+
     private Map<String, String> finish(Map<String, String> result) {
       skipWhitespace();
       if (pos != text.length()) {
@@ -145,7 +233,7 @@ public final class MiniJson {
       int start = pos;
       while (pos < text.length()) {
         char x = text.charAt(pos);
-        if (x == ',' || x == '}' || Character.isWhitespace(x)) {
+        if (x == ',' || x == '}' || x == ']' || Character.isWhitespace(x)) {
           break;
         }
         pos++;
