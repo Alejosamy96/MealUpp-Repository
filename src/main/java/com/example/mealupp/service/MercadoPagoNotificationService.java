@@ -51,7 +51,7 @@ public class MercadoPagoNotificationService {
     }
     Optional<Map<String, Object>> found = client.findPayment(dataId);
     if (found.isEmpty()) {
-      LOG.info("Mercado Pago avisó del pago {} pero no existe; se ignora", dataId);
+      LOG.info("Mercado Pago avisó de un pago que no existe; se ignora");
       return;
     }
     Map<String, Object> payment = found.get();
@@ -61,13 +61,13 @@ public class MercadoPagoNotificationService {
     }
     Object reference = payment.get("external_reference");
     if (!(reference instanceof String text) || text.isBlank()) {
-      LOG.info("El pago {} de Mercado Pago no trae referencia; se ignora", dataId);
+      LOG.info("Un pago de Mercado Pago no trae referencia; se ignora");
       return;
     }
     try {
       paymentService.applyResult(text, result, toAmount(payment.get("transaction_amount")));
     } catch (NotFoundException ex) {
-      LOG.info("El pago {} de Mercado Pago no corresponde a ningún pedido; se ignora", dataId);
+      LOG.info("Un pago de Mercado Pago no corresponde a ningún pedido; se ignora");
     }
   }
 
