@@ -5,6 +5,7 @@ export type OrderStatus =
   | "PENDING_PAYMENT"
   | "PENDING"
   | "IN_PREPARATION"
+  | "READY"
   | "DELIVERED"
   | "CANCELLED"
   | "EXPIRED";
@@ -45,9 +46,19 @@ export interface MenuResponse {
   message: string | null;
 }
 
-export interface CreateOrderRequest {
+/** Un plato de un pedido y cuántos almuerzos de ese plato. */
+export interface OrderItem {
+  dishName: string;
+  quantity: number;
+}
+
+export interface OrderItemRequest {
   dishId: number;
   quantity: number;
+}
+
+export interface CreateOrderRequest {
+  items: OrderItemRequest[];
   customerName: string;
   deliveryTime: string;
   deliveryZone: DeliveryZone;
@@ -67,6 +78,7 @@ export interface CreatedOrderResponse {
   total: number;
   accessCode: string;
   paymentUrl: string | null;
+  items: OrderItem[];
 }
 
 export interface OrderTrackingResponse {
@@ -79,6 +91,9 @@ export interface OrderTrackingResponse {
   deliveryDetail: string;
   total: number;
   paymentPending: boolean;
+  /** El cliente avisó que ya llegó (solo pedidos del centro comercial). */
+  arrived: boolean;
+  items: OrderItem[];
 }
 
 export interface LoginResponse {
@@ -100,6 +115,7 @@ export interface StaffOrder {
   deliveryDetail: string;
   status: OrderStatus;
   total: number;
+  items: OrderItem[];
 }
 
 export interface DailyOrdersResponse {
@@ -116,6 +132,17 @@ export interface KitchenTicket {
   deliveryTime: string;
   orderStatus: OrderStatus;
   ticketStatus: TicketStatus;
+  customerArrived: boolean;
+  items: OrderItem[];
+}
+
+export interface KitchenOrder {
+  id: number;
+  dishName: string;
+  quantity: number;
+  deliveryTime: string;
+  status: OrderStatus;
+  items: OrderItem[];
 }
 
 export interface CashierOrder {
@@ -126,6 +153,7 @@ export interface CashierOrder {
   unitPrice: number;
   total: number;
   status: OrderStatus;
+  items: (OrderItem & { unitPrice: number })[];
 }
 
 export interface DeliveryOrder {
@@ -137,6 +165,8 @@ export interface DeliveryOrder {
   deliveryZone: DeliveryZone;
   deliveryDetail: string;
   status: OrderStatus;
+  customerArrived: boolean;
+  items: OrderItem[];
 }
 
 export interface StaffDish {

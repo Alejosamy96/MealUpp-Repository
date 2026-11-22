@@ -9,10 +9,10 @@ import { profileStore, useProfile } from "../../services/profileStore";
 import styles from "./ProfilePage.module.css";
 
 export const PROFILE_OPTIONS: { slug: string; label: string; icon: IconName; soon: boolean }[] = [
-  { slug: "metodos-de-pago", label: "Métodos de pago", icon: "card", soon: true },
-  { slug: "notificaciones", label: "Notificaciones", icon: "bell", soon: true },
+  { slug: "metodos-de-pago", label: "Métodos de pago", icon: "card", soon: false },
+  { slug: "notificaciones", label: "Notificaciones", icon: "bell", soon: false },
   { slug: "preferencias-de-comida", label: "Preferencias de comida", icon: "utensils", soon: true },
-  { slug: "ayuda-y-soporte", label: "Ayuda y soporte", icon: "help", soon: true },
+  { slug: "ayuda-y-soporte", label: "Ayuda y soporte", icon: "help", soon: false },
 ];
 
 export function ProfilePage() {

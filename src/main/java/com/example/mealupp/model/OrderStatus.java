@@ -2,13 +2,14 @@ package com.example.mealupp.model;
 
 /**
  * Estados de un pedido. Con pago en línea el recorrido es PENDING_PAYMENT -> PENDING ->
- * IN_PREPARATION -> DELIVERED. Un pedido sin pagar puede vencer (EXPIRED) y uno sin entregar puede
- * cancelarse (CANCELLED).
+ * IN_PREPARATION -> READY -> DELIVERED. Un pedido sin pagar puede vencer (EXPIRED) y uno sin
+ * entregar puede cancelarse (CANCELLED).
  */
 public enum OrderStatus {
   PENDING_PAYMENT,
   PENDING,
   IN_PREPARATION,
+  READY,
   DELIVERED,
   CANCELLED,
   EXPIRED;
@@ -17,7 +18,8 @@ public enum OrderStatus {
     return switch (this) {
       case PENDING_PAYMENT -> next == PENDING || next == CANCELLED || next == EXPIRED;
       case PENDING -> next == IN_PREPARATION || next == CANCELLED;
-      case IN_PREPARATION -> next == DELIVERED;
+      case IN_PREPARATION -> next == READY;
+      case READY -> next == DELIVERED;
       case DELIVERED, CANCELLED, EXPIRED -> false;
     };
   }

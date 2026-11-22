@@ -4,6 +4,7 @@ import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.Order;
 import com.example.mealupp.model.OrderStatus;
 import java.time.LocalTime;
+import java.util.List;
 
 /** Lo que necesita quien entrega: a quién, dónde, a qué hora y qué lleva. Sin precios. */
 public record DeliveryOrderView(
@@ -14,17 +15,21 @@ public record DeliveryOrderView(
     LocalTime deliveryTime,
     DeliveryZone deliveryZone,
     String deliveryDetail,
-    OrderStatus status) {
+    OrderStatus status,
+    boolean customerArrived,
+    List<OrderItemView> items) {
 
   public static DeliveryOrderView from(Order order) {
     return new DeliveryOrderView(
         order.getId(),
         order.getCustomerName(),
-        order.getDish().getName(),
+        order.dishSummary(),
         order.getQuantity(),
         order.getDeliveryTime(),
         order.getDeliveryZone(),
         order.getDeliveryDetail(),
-        order.getStatus());
+        order.getStatus(),
+        order.getArrivedAt() != null,
+        OrderItemView.listOf(order));
   }
 }

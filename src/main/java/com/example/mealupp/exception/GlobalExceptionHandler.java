@@ -36,6 +36,12 @@ public class GlobalExceptionHandler {
     return new ErrorResponse(ex.getMessage());
   }
 
+  @ExceptionHandler(PaymentGatewayException.class)
+  @ResponseStatus(HttpStatus.BAD_GATEWAY)
+  public ErrorResponse handlePaymentGateway(PaymentGatewayException ex) {
+    return new ErrorResponse("No pudimos conectar con la pasarela de pagos. Intenta de nuevo");
+  }
+
   @ExceptionHandler(MaxUploadSizeExceededException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public ErrorResponse handleUploadTooLarge(MaxUploadSizeExceededException ex) {

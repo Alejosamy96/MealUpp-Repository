@@ -19,16 +19,16 @@ Esta es la guía para quien hace el frontend. Todo el backend está construido: 
 | Rol | Qué ve | Qué cambios de estado puede hacer |
 |---|---|---|
 | `ADMIN` | Todo | Cualquier cambio válido |
-| `KITCHEN` | Comandas y pedidos por preparar | `PENDING` → `IN_PREPARATION` |
+| `KITCHEN` | Comandas y pedidos por preparar | `PENDING` → `IN_PREPARATION` y `IN_PREPARATION` → `READY` |
 | `CASHIER` | Pedidos del día con su valor | `PENDING_PAYMENT` o `PENDING` → `CANCELLED` |
-| `DELIVERY` | Pedidos en preparación, con a quién y dónde | `IN_PREPARATION` → `DELIVERED` |
+| `DELIVERY` | Pedidos listos (`READY`), con a quién y dónde | `READY` → `DELIVERED` |
 
 El login devuelve `sections`: las opciones que debe mostrar el menú de esa persona (`pedidos`, `cocina`, `caja`, `entrega`, `menu`, `personal`).
 
 ### Estados de un pedido
 
 ```
-PENDING_PAYMENT ──pago aprobado──▶ PENDING ──▶ IN_PREPARATION ──▶ DELIVERED
+PENDING_PAYMENT ──pago aprobado──▶ PENDING ──▶ IN_PREPARATION ──▶ READY ──▶ DELIVERED
       │                               │
       ├──15 min sin pagar──▶ EXPIRED  └──▶ CANCELLED   (también desde PENDING_PAYMENT)
 ```
@@ -80,19 +80,27 @@ Platos disponibles. Si no hay ninguno, `dishes` viene vacío y `message` trae el
 Crea un pedido. Responde `201`.
 
 ```json
-{ "dishId": 1, "quantity": 2, "customerName": "Valentina",
+{ "items": [ { "dishId": 1, "quantity": 2 }, { "dishId": 3, "quantity": 1 } ],
+  "customerName": "Valentina",
   "deliveryTime": "12:00", "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12" }
 ```
+
+Un mismo pedido puede combinar varios platos con `items` (si un plato se repite, se suman sus cantidades). La regla de cantidad (mínimo y máximo de `/api/config`) cuenta **todos los almuerzos juntos**, y cada plato debe tener al menos 1. Para un solo plato también sirve la forma anterior: `{ "dishId": 1, "quantity": 2, ... }`. Si llegan `items`, se usan esos.
 
 Respuesta:
 
 ```json
-{ "id": 7, "dishName": "Pollo a la plancha", "quantity": 2, "customerName": "Valentina",
+{ "id": 7, "dishName": "Pollo a la plancha + Sopa del día", "quantity": 3,
+  "items": [ { "dishName": "Pollo a la plancha", "quantity": 2 },
+             { "dishName": "Sopa del día", "quantity": 1 } ],
+  "customerName": "Valentina",
   "orderDate": "2026-11-04", "deliveryTime": "12:00:00", "deliveryZone": "SHOPPING_CENTER",
-  "deliveryDetail": "Local 12", "status": "PENDING_PAYMENT", "total": 24000,
+  "deliveryDetail": "Local 12", "status": "PENDING_PAYMENT", "total": 33000,
   "accessCode": "K7M2XQ9PTD",
   "paymentUrl": "https://mealupp.com/pago-simulado?reference=SBX-..." }
 ```
+
+`quantity` es el total de almuerzos y `dishName` une los nombres con `+`; el detalle por plato está en `items`. Todas las respuestas y avisos que muestran un pedido traen `items` (en caja, con `unitPrice` por plato).
 
 - **Guarda `id` y `accessCode`** (por ejemplo en `localStorage`): son la única forma de que el cliente consulte su pedido.
 - Si `paymentUrl` no es `null`, lleva al cliente a esa dirección para que pague. Con pago desactivado viene `null` y el estado es `PENDING`.
@@ -105,8 +113,13 @@ Con un código incorrecto responde `404` (igual que si no existiera).
 ```json
 { "id": 7, "status": "PENDING", "dishName": "Pollo a la plancha", "quantity": 2,
   "deliveryTime": "12:00:00", "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12",
-  "total": 24000, "paymentPending": false }
+  "total": 24000, "paymentPending": false, "arrived": false }
 ```
+
+`arrived` es `true` cuando el cliente ya avisó su llegada.
+
+### `POST /api/orders/{id}/arrived?code=ACCESSCODE`
+El cliente avisa que ya llegó. Reglas: el pedido debe ser de la zona `SHOPPING_CENTER`, estar en `PENDING`, `IN_PREPARATION` o `READY`, y no haber avisado antes. Marca la llegada, notifica a cocina (`/topic/comandas`) y a entrega/caja/admin (`/topic/pedidos`) y devuelve el mismo cuerpo que `GET /api/orders/{id}`. Errores: `404` (pedido o código incorrecto), `400` (regla de negocio incumplida). Cocina y entrega ven el campo `customerArrived` en sus listados.
 
 ### `POST /api/orders/{id}/pay?code=ACCESSCODE`
 Nuevo intento de pago de un pedido que sigue en `PENDING_PAYMENT` (por ejemplo si el pago fue rechazado). Devuelve `{ "paymentUrl": "..." }`.
@@ -129,7 +142,12 @@ Con `PAYMENT_PROVIDER=sandbox` no se cobra nada. `paymentUrl` apunta a una pági
 
 Estas dos rutas existen solo si `SANDBOX_ENABLED=true`. En producción se apagan.
 
-### Pasarela real (cuando se elija el proveedor)
+### Mercado Pago (`PAYMENT_PROVIDER=mercadopago`)
+Al crear el pedido, el backend crea una preferencia de Checkout Pro y devuelve su dirección en `paymentUrl`; el frontend lleva al cliente allí. Al terminar, Mercado Pago lo devuelve a `FRONTEND_URL/pedido/{id}` y avisa por webhook a:
+
+`POST /api/payments/mercadopago/webhook?data.id=...&type=payment` con los encabezados `x-signature` (`ts=...,v1=...`) y `x-request-id`. El backend valida la firma con `MERCADOPAGO_WEBHOOK_SECRET`, consulta el pago en la API de Mercado Pago y aplica el resultado: `approved` confirma el pedido; `rejected` y `cancelled` rechazan el intento; los demás estados se ignoran. Responde `200`.
+
+### Otra pasarela
 Se escribe un adaptador nuevo en el backend y el frontend no cambia. El aviso de la pasarela llega a:
 
 `POST /api/payments/webhook` con el encabezado `X-Signature` = HMAC-SHA256 en hexadecimal del cuerpo, con la clave `PAYMENT_WEBHOOK_SECRET`.
@@ -166,10 +184,12 @@ Con el token. Responde `204` y el token deja de servir.
 |---|---|---|
 | `GET /api/staff/orders?zone=SHOPPING_CENTER` | `ADMIN` | `{ date, totalLunches, orders: [...] }`. `zone` es opcional. `totalLunches` cuenta solo pedidos confirmados |
 | `PATCH /api/staff/orders/{id}/status` con `{ "status": "IN_PREPARATION" }` | todos los roles, según la tabla de arriba | El pedido actualizado. `403` si el rol no puede hacer ese cambio; `400` si el cambio no es válido |
-| `GET /api/staff/kitchen/orders` | `KITCHEN`, `ADMIN` | `[{ id, dishName, quantity, deliveryTime, status }]` (sin datos del cliente) |
-| `GET /api/staff/kitchen/tickets` | `KITCHEN`, `ADMIN` | Comandas pendientes (ver WebSocket). Úsalo al abrir o reconectar la pantalla de cocina |
-| `GET /api/staff/cashier/orders` | `CASHIER`, `ADMIN` | `[{ id, customerName, dishName, quantity, unitPrice, total, status }]` |
-| `GET /api/staff/delivery/orders?zone=...` | `DELIVERY`, `ADMIN` | `[{ id, customerName, dishName, quantity, deliveryTime, deliveryZone, deliveryDetail, status }]`, solo los que están en `IN_PREPARATION` |
+| `GET /api/staff/kitchen/orders` | `KITCHEN`, `ADMIN` | `[{ id, dishName, quantity, deliveryTime, status, items }]` (sin datos del cliente) |
+| `GET /api/staff/kitchen/tickets` | `KITCHEN`, `ADMIN` | Comandas que siguen en cocina: pedidos `PENDING` o `IN_PREPARATION` (ver WebSocket). Úsalo al abrir o reconectar la pantalla de cocina |
+| `GET /api/staff/kitchen/done` | `KITCHEN`, `ADMIN` | Pedidos de hoy que cocina ya dejó listos (`READY`) o que ya se entregaron (`DELIVERED`), con la misma forma que `kitchen/orders` (incluye `items`). La pantalla de cocina los muestra en la pestaña «Ya hechos» |
+| `GET /api/staff/cashier/orders` | `CASHIER`, `ADMIN` | `[{ id, customerName, dishName, quantity, unitPrice, total, status, items: [{ dishName, quantity, unitPrice }] }]` |
+| `GET /api/staff/delivery/delivered?zone=...` | `DELIVERY`, `ADMIN` | Igual que `delivery/orders`, pero de los pedidos de hoy que ya están en `DELIVERED`. La pantalla de entrega los muestra en la pestaña «Entregados» |
+| `GET /api/staff/delivery/orders?zone=...` | `DELIVERY`, `ADMIN` | `[{ id, customerName, dishName, quantity, deliveryTime, deliveryZone, deliveryDetail, status, customerArrived, items }]`, solo los que están en `READY` (cocina ya los dejó listos) |
 
 Una persona que abre la pantalla de otro rol recibe `403` con "No tienes permiso para entrar a esta sección".
 
@@ -233,15 +253,17 @@ El cuerpo de cada mensaje es **texto JSON** (haz `JSON.parse(frame.body)`).
 `/topic/comandas`:
 ```json
 { "event": "CREATED", "ticketId": 4, "orderId": 7, "dishName": "Pollo a la plancha",
-  "quantity": 2, "deliveryTime": "12:30", "orderStatus": "PENDING", "ticketStatus": "SENT" }
+  "quantity": 2, "deliveryTime": "12:30", "orderStatus": "PENDING", "ticketStatus": "SENT", "customerArrived": false,
+  "items": [ { "dishName": "Pollo a la plancha", "quantity": 2 } ] }
 ```
-`event` es `CREATED` o `UPDATED`. Muestra la comanda mientras `orderStatus` sea `PENDING` o `IN_PREPARATION`, y quítala cuando sea `CANCELLED` o `DELIVERED`.
+`event` es `CREATED` o `UPDATED`. Muestra la comanda mientras `orderStatus` sea `PENDING` o `IN_PREPARATION`, y quítala cuando sea `READY`, `CANCELLED` o `DELIVERED`.
 
 `/topic/pedidos`:
 ```json
 { "event": "ORDER_CHANGED", "id": 7, "dishName": "Pollo a la plancha", "quantity": 2,
   "customerName": "Valentina", "orderDate": "2026-11-04", "deliveryTime": "12:30",
-  "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12", "status": "IN_PREPARATION", "total": 24000 }
+  "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12", "status": "IN_PREPARATION", "total": 24000,
+  "items": [ { "dishName": "Pollo a la plancha", "quantity": 2 } ] }
 ```
 
 Ejemplo con `@stomp/stompjs`:
@@ -285,7 +307,11 @@ Si el WebSocket no llega a conectarse, la pantalla puede consultar `GET /api/sta
 | `PAYMENT_WEBHOOK_SECRET` | Firma de los avisos de la pasarela | Sí |
 | `CORS_ALLOWED_ORIGINS` | Dominios del frontend, separados por coma | No (por defecto `localhost:5173` y `:3000`) |
 | `PAYMENTS_REQUIRED` | `true` exige pago en línea; `false` confirma el pedido al crearlo | No (`true`) |
-| `PAYMENT_PROVIDER` | Proveedor de la pasarela (hoy solo `sandbox`) | No |
+| `PAYMENT_PROVIDER` | Proveedor de la pasarela: `sandbox` (simulada) o `mercadopago` | No (`sandbox`) |
+| `MERCADOPAGO_ACCESS_TOKEN` | Credencial privada de la aplicación de Mercado Pago (`TEST-...` en pruebas) | Solo con `mercadopago` |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Clave secreta de los webhooks, la que muestra el panel de Mercado Pago | Solo con `mercadopago` |
+| `MERCADOPAGO_NOTIFICATION_URL` | Dirección pública HTTPS del webhook (`.../api/payments/mercadopago/webhook`) | Solo con `mercadopago` |
+| `FRONTEND_URL` | Dirección del frontend, a donde vuelve el cliente después de pagar | No (`http://localhost:5173`) |
 | `SANDBOX_ENABLED` | Activa las rutas de la pasarela simulada | No (`true`; apagar en producción) |
 | `SANDBOX_CHECKOUT_URL` | Página del frontend para el pago simulado | No |
 | `STORAGE_TYPE` | `local` (carpeta del servidor) o `s3` | No (`local`) |

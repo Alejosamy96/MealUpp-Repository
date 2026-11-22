@@ -7,6 +7,7 @@ import type {
   DailyOrdersResponse,
   DeliveryOrder,
   DeliveryZone,
+  KitchenOrder,
   KitchenTicket,
   LoginResponse,
   MenuResponse,
@@ -30,6 +31,8 @@ export const publicApi = {
     request<OrderTrackingResponse>("GET", `/api/orders/${q(id)}?code=${q(code)}`, { signal }),
   retryPayment: (id: number, code: string) =>
     request<{ paymentUrl: string }>("POST", `/api/orders/${q(id)}/pay?code=${q(code)}`),
+  notifyArrival: (id: number, code: string) =>
+    request<OrderTrackingResponse>("POST", `/api/orders/${q(id)}/arrived?code=${q(code)}`),
   sandboxApprove: (reference: string) =>
     request<{ received: boolean }>("POST", `/api/payments/sandbox/${q(reference)}/approve`),
   sandboxDecline: (reference: string) =>
@@ -50,10 +53,13 @@ export const staffApi = {
   updateStatus: (id: number, status: OrderStatus) =>
     request<StaffOrder>("PATCH", `/api/staff/orders/${q(id)}/status`, { auth, body: { status } }),
 
+  kitchenDone: (signal?: AbortSignal) => request<KitchenOrder[]>("GET", "/api/staff/kitchen/done", { auth, signal }),
   kitchenTickets: (signal?: AbortSignal) =>
     request<KitchenTicket[]>("GET", "/api/staff/kitchen/tickets", { auth, signal }),
   cashierOrders: (signal?: AbortSignal) =>
     request<CashierOrder[]>("GET", "/api/staff/cashier/orders", { auth, signal }),
+  deliveredOrders: (zone?: DeliveryZone | "", signal?: AbortSignal) =>
+    request<DeliveryOrder[]>("GET", `/api/staff/delivery/delivered${zoneParam(zone)}`, { auth, signal }),
   deliveryOrders: (zone?: DeliveryZone | "", signal?: AbortSignal) =>
     request<DeliveryOrder[]>("GET", `/api/staff/delivery/orders${zoneParam(zone)}`, { auth, signal }),
 

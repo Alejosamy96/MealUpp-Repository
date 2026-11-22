@@ -32,6 +32,12 @@ public class RoleOrderViewController {
     return viewService.kitchenOrders();
   }
 
+  /** Pedidos de hoy que cocina ya dejó listos (y los que ya se entregaron). */
+  @GetMapping("/kitchen/done")
+  public List<KitchenOrderView> kitchenDone() {
+    return viewService.kitchenDoneOrders();
+  }
+
   /** Comandas pendientes. La pantalla de cocina las pide al conectarse o reconectarse. */
   @GetMapping("/kitchen/tickets")
   public List<KitchenTicketView> kitchenTickets() {
@@ -47,5 +53,12 @@ public class RoleOrderViewController {
   public List<DeliveryOrderView> deliveryOrders(
       @RequestParam(name = "zone", required = false) DeliveryZone zone) {
     return viewService.deliveryOrders(zone);
+  }
+
+  /** Pedidos de hoy que ya se entregaron, para la pestaña «Entregados» de entrega. */
+  @GetMapping("/delivery/delivered")
+  public List<DeliveryOrderView> deliveredOrders(
+      @RequestParam(name = "zone", required = false) DeliveryZone zone) {
+    return viewService.deliveredOrders(zone);
   }
 }

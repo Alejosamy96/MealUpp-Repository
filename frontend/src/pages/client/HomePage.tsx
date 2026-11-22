@@ -11,7 +11,7 @@ import styles from "./HomePage.module.css";
 const FEATURES: { icon: IconName; text: string }[] = [
   { icon: "calendarClock", text: "Reserva con anticipación" },
   { icon: "card", text: "Paga de forma segura" },
-  { icon: "bell", text: "Recibe tu aviso de llegada" },
+  { icon: "bell", text: "Avisa cuando llegues" },
 ];
 
 export function HomePage() {

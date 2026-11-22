@@ -4,3 +4,5 @@
 }
 .back:hover { color: var(--color-olive); }
 .card { padding: var(--space-5); display: grid; gap: var(--space-3); justify-items: start; color: var(--color-text-muted); }
+.card p { margin: 0; }
+.card strong { color: var(--color-text); }

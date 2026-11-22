@@ -7,10 +7,10 @@ import { Card, EmptyState, ErrorState, Loading, PageHeader, StatusChip } from ".
 import { useAsync } from "../../hooks/useAsync";
 import { useConfig, zoneLabel } from "../../hooks/useConfig";
 import { useStompTopic } from "../../hooks/useStompTopic";
-import { formatCOP, formatDate, formatTime } from "../../lib/format";
+import { formatCOP, formatDate, formatTime, itemsText } from "../../lib/format";
 import { REFRESH_MS, RefreshBar, StatusActions, ZoneFilter, staffStyles as s } from "./shared";
 
-const ORDER: OrderStatus[] = ["PENDING", "IN_PREPARATION", "PENDING_PAYMENT", "DELIVERED", "CANCELLED", "EXPIRED"];
+const ORDER: OrderStatus[] = ["PENDING", "IN_PREPARATION", "READY", "PENDING_PAYMENT", "DELIVERED", "CANCELLED", "EXPIRED"];
 
 export function StaffOrdersPage() {
   const [zone, setZone] = useState<DeliveryZone | "">("");
@@ -49,6 +49,10 @@ export function StaffOrdersPage() {
               <span className={s.statValue}>{counts.IN_PREPARATION}</span>
             </Card>
             <Card className={s.stat}>
+              <span className={s.statLabel}>Listos para entregar</span>
+              <span className={s.statValue}>{counts.READY}</span>
+            </Card>
+            <Card className={s.stat}>
               <span className={s.statLabel}>Esperando pago</span>
               <span className={s.statValue}>{counts.PENDING_PAYMENT}</span>
             </Card>
@@ -64,7 +68,7 @@ export function StaffOrdersPage() {
                     <div className={s.itemHead}>
                       <div>
                         <p className={s.itemTitle}>
-                          #{o.id} · {o.quantity} × {o.dishName}
+                          #{o.id} · {itemsText(o.items, o.dishName, o.quantity)}
                         </p>
                         <p className={s.itemMeta}>{o.customerName}</p>
                       </div>

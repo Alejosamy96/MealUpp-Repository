@@ -6,13 +6,15 @@
 import { useSyncExternalStore } from "react";
 import { publicApi } from "../api/endpoints";
 import { ApiError } from "../api/client";
-import type { CreatedOrderResponse, DeliveryZone, OrderStatus, OrderTrackingResponse } from "../api/types";
+import type { CreatedOrderResponse, DeliveryZone, OrderItem, OrderStatus, OrderTrackingResponse } from "../api/types";
 
 export interface StoredOrder {
   id: number;
   accessCode: string;
   dishName: string;
   quantity: number;
+  /** Platos del pedido. Las reservas guardadas antes de esta función no lo tienen. */
+  items?: OrderItem[];
   customerName: string;
   orderDate: string;
   deliveryTime: string;
@@ -20,6 +22,8 @@ export interface StoredOrder {
   deliveryDetail: string;
   total: number;
   status: OrderStatus;
+  /** El cliente ya avisó su llegada. */
+  arrived?: boolean;
   /** Referencia del pago (para la pasarela simulada). */
   paymentReference: string | null;
   paymentUrl: string | null;
@@ -77,6 +81,7 @@ export const ordersStore = {
       accessCode: created.accessCode,
       dishName: created.dishName,
       quantity: created.quantity,
+      items: created.items,
       customerName: created.customerName,
       orderDate: created.orderDate,
       deliveryTime: created.deliveryTime,
@@ -100,8 +105,10 @@ export const ordersStore = {
           ? {
               ...o,
               status: t.status,
+              arrived: t.arrived,
               dishName: t.dishName,
               quantity: t.quantity,
+              items: t.items,
               deliveryTime: t.deliveryTime,
               deliveryZone: t.deliveryZone,
               deliveryDetail: t.deliveryDetail,

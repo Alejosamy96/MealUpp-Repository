@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import com.example.mealupp.dto.KitchenTicketView;
+import com.example.mealupp.dto.OrderItemView;
 import com.example.mealupp.dto.OrderResponse;
 import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.OrderStatus;
@@ -16,6 +17,7 @@ import com.example.mealupp.model.TicketStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +40,9 @@ class WebSocketKitchenNotifierTest {
           2,
           LocalTime.of(12, 30),
           OrderStatus.PENDING,
-          TicketStatus.SENT);
+          TicketStatus.SENT,
+          false,
+          List.of(new OrderItemView("Pollo a la plancha", 2)));
 
   @BeforeEach
   void setUp() {
@@ -55,7 +59,8 @@ class WebSocketKitchenNotifierTest {
         .isEqualTo(
             "{\"event\":\"CREATED\",\"ticketId\":4,\"orderId\":7,\"dishName\":\"Pollo a la plancha\","
                 + "\"quantity\":2,\"deliveryTime\":\"12:30\",\"orderStatus\":\"PENDING\","
-                + "\"ticketStatus\":\"SENT\"}");
+                + "\"ticketStatus\":\"SENT\",\"customerArrived\":false,"
+                + "\"items\":[{\"dishName\":\"Pollo a la plancha\",\"quantity\":2}]}");
   }
 
   @Test
@@ -80,7 +85,8 @@ class WebSocketKitchenNotifierTest {
             DeliveryZone.SHOPPING_CENTER,
             "Local 12",
             OrderStatus.IN_PREPARATION,
-            new BigDecimal("24000"));
+            new BigDecimal("24000"),
+            List.of(new OrderItemView("Pollo a la plancha", 2)));
 
     notifier.orderChanged(order);
 
@@ -90,7 +96,8 @@ class WebSocketKitchenNotifierTest {
         .contains("\"event\":\"ORDER_CHANGED\"")
         .contains("\"status\":\"IN_PREPARATION\"")
         .contains("\"total\":24000")
-        .contains("\"deliveryZone\":\"SHOPPING_CENTER\"");
+        .contains("\"deliveryZone\":\"SHOPPING_CENTER\"")
+        .contains("\"items\":[{\"dishName\":\"Pollo a la plancha\",\"quantity\":2}]");
   }
 
   @Test

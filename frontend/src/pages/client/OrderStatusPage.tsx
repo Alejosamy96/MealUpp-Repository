@@ -11,13 +11,14 @@ import { Icon } from "../../components/Icon";
 import { Card, EmptyState, Notice, StatusChip } from "../../components/ui";
 import { FINAL_STATUSES } from "../../config/labels";
 import { useConfig, zoneLabel } from "../../hooks/useConfig";
-import { formatCOP, formatDate, formatTime, relativeSeconds } from "../../lib/format";
+import { formatCOP, formatDate, formatTime, itemsText, relativeSeconds } from "../../lib/format";
 import { ordersStore, useStoredOrders } from "../../services/ordersStore";
 import styles from "./OrderStatusPage.module.css";
 
 const STEPS: { status: OrderStatus; label: string }[] = [
   { status: "PENDING", label: "Reservada" },
   { status: "IN_PREPARATION", label: "En preparación" },
+  { status: "READY", label: "Lista" },
   { status: "DELIVERED", label: "Entregada" },
 ];
 
@@ -95,7 +96,7 @@ export function OrderStatusPage() {
   };
 
   const stepIndex = STEPS.findIndex((s) => s.status === order.status);
-  const confirmed = order.status === "PENDING" || order.status === "IN_PREPARATION" || order.status === "DELIVERED";
+  const confirmed = order.status === "PENDING" || order.status === "IN_PREPARATION" || order.status === "READY" || order.status === "DELIVERED";
 
   return (
     <div className={styles.page}>
@@ -155,6 +156,9 @@ export function OrderStatusPage() {
         )}
 
         <dl className={styles.details}>
+          {order.items && order.items.length > 1 && (
+            <div><dt>Platos</dt><dd>{itemsText(order.items, order.dishName, order.quantity)}</dd></div>
+          )}
           <div><dt>Cantidad</dt><dd>{order.quantity}</dd></div>
           <div><dt>Total</dt><dd>{formatCOP(order.total)}</dd></div>
           <div><dt>A nombre de</dt><dd>{order.customerName}</dd></div>
