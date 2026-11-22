@@ -202,6 +202,13 @@ class OrderRolesApiIntegrationTest {
         .perform(get("/api/staff/kitchen/tickets").header("Authorization", kitchen))
         .andExpect(jsonPath("$.length()").value(0));
 
+    // En cocina el pedido pasa a la pestaña de hechos.
+    mockMvc
+        .perform(get("/api/staff/kitchen/done").header("Authorization", kitchen))
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].status").value("READY"))
+        .andExpect(jsonPath("$[0].customerName").doesNotExist());
+
     // Ahora sí lo ve entrega, con a quién y dónde, pero sin precios.
     mockMvc
         .perform(get("/api/staff/delivery/orders").header("Authorization", delivery))
@@ -216,6 +223,12 @@ class OrderRolesApiIntegrationTest {
     mockMvc
         .perform(get("/api/staff/delivery/orders").header("Authorization", delivery))
         .andExpect(jsonPath("$.length()").value(0));
+    // Pasa a la pestaña de entregados, con los datos del cliente y del pedido.
+    mockMvc
+        .perform(get("/api/staff/delivery/delivered").header("Authorization", delivery))
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].customerName").value("Valentina"))
+        .andExpect(jsonPath("$[0].status").value("DELIVERED"));
   }
 
   @Test
@@ -271,6 +284,9 @@ class OrderRolesApiIntegrationTest {
         .andExpect(status().isForbidden());
     mockMvc
         .perform(get("/api/staff/kitchen/tickets").header("Authorization", delivery))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(get("/api/staff/kitchen/done").header("Authorization", delivery))
         .andExpect(status().isForbidden());
     mockMvc
         .perform(get("/api/staff/cashier/orders").header("Authorization", delivery))

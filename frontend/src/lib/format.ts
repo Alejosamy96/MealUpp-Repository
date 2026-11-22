@@ -79,3 +79,9 @@ export function relativeSeconds(ms: number): string {
   const m = Math.round(s / 60);
   return `hace ${m} min`;
 }
+
+/** "2 × Pollo" si es un plato; "2 × Pollo · 1 × Sopa" si el pedido tiene varios. */
+export function itemsText(items: { dishName: string; quantity: number }[] | undefined, dishName: string, quantity: number): string {
+  if (!items || items.length <= 1) return `${quantity} × ${dishName}`;
+  return items.map((item) => `${item.quantity} × ${item.dishName}`).join(" · ");
+}

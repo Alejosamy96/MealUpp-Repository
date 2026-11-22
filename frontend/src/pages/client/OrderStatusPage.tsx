@@ -11,7 +11,7 @@ import { Icon } from "../../components/Icon";
 import { Card, EmptyState, Notice, StatusChip } from "../../components/ui";
 import { FINAL_STATUSES } from "../../config/labels";
 import { useConfig, zoneLabel } from "../../hooks/useConfig";
-import { formatCOP, formatDate, formatTime, relativeSeconds } from "../../lib/format";
+import { formatCOP, formatDate, formatTime, itemsText, relativeSeconds } from "../../lib/format";
 import { ordersStore, useStoredOrders } from "../../services/ordersStore";
 import styles from "./OrderStatusPage.module.css";
 
@@ -156,6 +156,9 @@ export function OrderStatusPage() {
         )}
 
         <dl className={styles.details}>
+          {order.items && order.items.length > 1 && (
+            <div><dt>Platos</dt><dd>{itemsText(order.items, order.dishName, order.quantity)}</dd></div>
+          )}
           <div><dt>Cantidad</dt><dd>{order.quantity}</dd></div>
           <div><dt>Total</dt><dd>{formatCOP(order.total)}</dd></div>
           <div><dt>A nombre de</dt><dd>{order.customerName}</dd></div>

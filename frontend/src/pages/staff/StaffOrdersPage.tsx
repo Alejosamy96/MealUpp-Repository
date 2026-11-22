@@ -7,7 +7,7 @@ import { Card, EmptyState, ErrorState, Loading, PageHeader, StatusChip } from ".
 import { useAsync } from "../../hooks/useAsync";
 import { useConfig, zoneLabel } from "../../hooks/useConfig";
 import { useStompTopic } from "../../hooks/useStompTopic";
-import { formatCOP, formatDate, formatTime } from "../../lib/format";
+import { formatCOP, formatDate, formatTime, itemsText } from "../../lib/format";
 import { REFRESH_MS, RefreshBar, StatusActions, ZoneFilter, staffStyles as s } from "./shared";
 
 const ORDER: OrderStatus[] = ["PENDING", "IN_PREPARATION", "READY", "PENDING_PAYMENT", "DELIVERED", "CANCELLED", "EXPIRED"];
@@ -68,7 +68,7 @@ export function StaffOrdersPage() {
                     <div className={s.itemHead}>
                       <div>
                         <p className={s.itemTitle}>
-                          #{o.id} · {o.quantity} × {o.dishName}
+                          #{o.id} · {itemsText(o.items, o.dishName, o.quantity)}
                         </p>
                         <p className={s.itemMeta}>{o.customerName}</p>
                       </div>

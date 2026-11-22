@@ -8,7 +8,7 @@ import { publicApi } from "../../api/endpoints";
 import { Button } from "../../components/Button";
 import { Icon } from "../../components/Icon";
 import { Card, EmptyState, Notice, PageHeader } from "../../components/ui";
-import { formatCOP, formatTime } from "../../lib/format";
+import { formatCOP, formatTime, itemsText } from "../../lib/format";
 import { ordersStore } from "../../services/ordersStore";
 import styles from "./SandboxPaymentPage.module.css";
 
@@ -71,7 +71,7 @@ export function SandboxPaymentPage() {
         <Card className={styles.card}>
           <p className={styles.muted}>Pedido #{order.id}</p>
           <p className={styles.dish}>
-            {order.quantity} × {order.dishName}
+            {itemsText(order.items, order.dishName, order.quantity)}
           </p>
           <p className={styles.muted}>Entrega a las {formatTime(order.deliveryTime)}</p>
           <p className={styles.total}>{formatCOP(order.total)}</p>

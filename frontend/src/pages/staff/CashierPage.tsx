@@ -71,9 +71,13 @@ export function CashierPage() {
                     <tr key={o.id}>
                       <td>{o.id}</td>
                       <td>{o.customerName}</td>
-                      <td>{o.dishName}</td>
+                      <td>
+                        {o.items.length > 1 ? o.items.map((item) => <div key={item.dishName}>{item.quantity} × {item.dishName}</div>) : o.dishName}
+                      </td>
                       <td className={styles.num}>{o.quantity}</td>
-                      <td className={styles.num}>{formatCOP(Number(o.unitPrice))}</td>
+                      <td className={styles.num}>
+                        {o.items.length > 1 ? o.items.map((item) => <div key={item.dishName}>{formatCOP(Number(item.unitPrice))}</div>) : formatCOP(Number(o.unitPrice))}
+                      </td>
                       <td className={`${styles.num} ${styles.strong}`}>{formatCOP(Number(o.total))}</td>
                       <td><StatusChip status={o.status} /></td>
                       <td><StatusActions orderId={o.id} status={o.status} onChanged={orders.reload} /></td>

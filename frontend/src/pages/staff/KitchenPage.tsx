@@ -1,10 +1,12 @@
-// Cocina: comandas por preparar, ordenadas por hora de entrega. Llegan en tiempo real por
+// Cocina: dos pestañas. «Recientes» tiene las comandas por preparar, ordenadas por hora de entrega;
+// «Ya hechos» tiene los pedidos que cocina marcó como listos. Las comandas llegan en tiempo real por
 // WebSocket (/topic/comandas); al conectar se piden las pendientes por REST para no perder nada.
 // Respaldo: si no hay WebSocket, se consulta cada 15 s; y siempre hay recarga cada 30 s y manual.
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { staffApi } from "../../api/endpoints";
-import type { KitchenTicket, OrderStatus } from "../../api/types";
+import type { KitchenOrder, KitchenTicket, OrderStatus } from "../../api/types";
 import { Icon } from "../../components/Icon";
+import { Tabs } from "../../components/Tabs";
 import { Card, Chip, EmptyState, ErrorState, Loading, PageHeader, StatusChip } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { useStompTopic } from "../../hooks/useStompTopic";
@@ -22,14 +24,24 @@ interface TicketEvent {
   orderStatus: OrderStatus;
   ticketStatus: KitchenTicket["ticketStatus"];
   customerArrived: boolean;
+  items: KitchenTicket["items"];
 }
 
 const VISIBLE: OrderStatus[] = ["PENDING", "IN_PREPARATION"];
+type TabKey = "recientes" | "hechos";
+const DONE: OrderStatus[] = ["READY", "DELIVERED"];
 const sortByTime = (list: KitchenTicket[]) => [...list].sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime));
 
 export function KitchenPage() {
   const tickets = useAsync((signal) => staffApi.kitchenTickets(signal), [], { intervalMs: REFRESH_MS });
   const { setData, reload } = tickets;
+  const done = useAsync((signal) => staffApi.kitchenDone(signal), [], { intervalMs: REFRESH_MS });
+  const { reload: reloadDone } = done;
+  const [tab, setTab] = useState<TabKey>("recientes");
+  const reloadAll = useCallback(() => {
+    reload();
+    reloadDone();
+  }, [reload, reloadDone]);
 
   const onEvent = useCallback(
     (e: TicketEvent) => {
@@ -42,61 +54,144 @@ export function KitchenPage() {
     },
     [setData],
   );
-  const socket = useStompTopic<TicketEvent>("/topic/comandas", onEvent, reload);
+  // Cuando un pedido sale de las comandas (listo o entregado) se actualiza la pestaña «Ya hechos».
+  const onTicketEvent = useCallback(
+    (e: TicketEvent) => {
+      onEvent(e);
+      if (DONE.includes(e.orderStatus)) reloadDone();
+    },
+    [onEvent, reloadDone],
+  );
+  const socket = useStompTopic<TicketEvent>("/topic/comandas", onTicketEvent, reloadAll);
   // Respaldo cada 15 s cuando el tiempo real no está disponible.
   useEffect(() => {
     if (socket === "live") return;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") reload();
+      if (document.visibilityState === "visible") reloadAll();
     }, 15_000);
     return () => window.clearInterval(timer);
-  }, [socket, reload]);
+  }, [socket, reloadAll]);
 
   const list = sortByTime((tickets.data ?? []).filter((t) => VISIBLE.includes(t.orderStatus)));
   const totalLunches = list.reduce((sum, t) => sum + t.quantity, 0);
+  const doneList: KitchenOrder[] = [...(done.data ?? [])].sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime));
+  const doneLunches = doneList.reduce((sum, o) => sum + o.quantity, 0);
 
   return (
     <>
       <PageHeader icon="chef" title="Cocina" subtitle="Qué preparar y para qué hora." />
+      <Tabs
+        idPrefix="cocina"
+        label="Pedidos de cocina"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { key: "recientes", label: "Recientes", count: list.length },
+          { key: "hechos", label: "Ya hechos", count: doneList.length },
+        ]}
+      />
       <div className={s.toolbar}>
         <p className={styles.summary}>
-          <strong>{totalLunches}</strong> almuerzos en {list.length} comandas
+          {tab === "recientes" ? (
+            <>
+              <strong>{totalLunches}</strong> almuerzos en {list.length} comandas
+            </>
+          ) : (
+            <>
+              <strong>{doneLunches}</strong> almuerzos en {doneList.length} pedidos hechos
+            </>
+          )}
         </p>
-        <RefreshBar updatedAt={tickets.updatedAt} loading={tickets.loading} onRefresh={reload} socket={socket} />
+        <RefreshBar updatedAt={tickets.updatedAt} loading={tickets.loading || done.loading} onRefresh={reloadAll} socket={socket} />
       </div>
 
-      {tickets.loading && !tickets.data ? (
-        <Loading label="Cargando comandas…" />
-      ) : tickets.error && !tickets.data ? (
-        <ErrorState message={tickets.error} onRetry={reload} />
-      ) : list.length === 0 ? (
-        <EmptyState icon="chef" title="No hay comandas pendientes">
-          <p>Las nuevas comandas aparecerán aquí apenas se confirme el pago.</p>
-        </EmptyState>
-      ) : (
-        <ul className={s.grid}>
-          {list.map((t) => (
-            <li key={t.ticketId}>
-              <Card className={`${s.item} ${t.orderStatus === "PENDING" ? styles.pending : styles.cooking}`}>
-                <div className={s.itemHead}>
-                  <p className={styles.time}>
-                    <Icon name="clock" size={20} /> {formatTime(t.deliveryTime)}
-                  </p>
-                  <div className={styles.chips}>
-                    {t.ticketStatus === "SENT" && t.orderStatus === "PENDING" && <Chip tone="amber">Nueva</Chip>}
-                    {t.customerArrived && <Chip tone="green">Cliente llegó</Chip>}
-                    <StatusChip status={t.orderStatus} />
+      {tab === "recientes" ? (
+      <div id="cocina-panel" role="tabpanel" aria-labelledby={`cocina-tab-${tab}`}>
+        {tickets.loading && !tickets.data ? (
+          <Loading label="Cargando comandas…" />
+        ) : tickets.error && !tickets.data ? (
+          <ErrorState message={tickets.error} onRetry={reload} />
+        ) : list.length === 0 ? (
+          <EmptyState icon="chef" title="No hay comandas pendientes">
+            <p>Las nuevas comandas aparecerán aquí apenas se confirme el pago.</p>
+          </EmptyState>
+        ) : (
+          <ul className={s.grid}>
+            {list.map((t) => (
+              <li key={t.ticketId}>
+                <Card className={`${s.item} ${t.orderStatus === "PENDING" ? styles.pending : styles.cooking}`}>
+                  <div className={s.itemHead}>
+                    <p className={styles.time}>
+                      <Icon name="clock" size={20} /> {formatTime(t.deliveryTime)}
+                    </p>
+                    <div className={styles.chips}>
+                      {t.ticketStatus === "SENT" && t.orderStatus === "PENDING" && <Chip tone="amber">Nueva</Chip>}
+                      {t.customerArrived && <Chip tone="green">Cliente llegó</Chip>}
+                      <StatusChip status={t.orderStatus} />
+                    </div>
                   </div>
-                </div>
-                <p className={styles.dish}>
-                  <span className={styles.qty}>{t.quantity}×</span> {t.dishName}
-                </p>
-                <p className={s.itemMeta}>Pedido #{t.orderId}</p>
-                <StatusActions orderId={t.orderId} status={t.orderStatus} onChanged={reload} />
-              </Card>
-            </li>
-          ))}
-        </ul>
+                  <p className={styles.dish}>
+                    {t.items.length > 1 ? (
+                      t.items.map((item) => (
+                        <span key={item.dishName} className={styles.dishLine}>
+                          <span className={styles.qty}>{item.quantity}×</span> {item.dishName}
+                        </span>
+                      ))
+                    ) : (
+                      <>
+                        <span className={styles.qty}>{t.quantity}×</span> {t.dishName}
+                      </>
+                    )}
+                  </p>
+                  <p className={s.itemMeta}>Pedido #{t.orderId}</p>
+                  <StatusActions orderId={t.orderId} status={t.orderStatus} onChanged={reloadAll} />
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      ) : (
+      <div id="cocina-panel" role="tabpanel" aria-labelledby={`cocina-tab-${tab}`}>
+        {done.loading && !done.data ? (
+          <Loading label="Cargando pedidos hechos…" />
+        ) : done.error && !done.data ? (
+          <ErrorState message={done.error} onRetry={reloadDone} />
+        ) : doneList.length === 0 ? (
+          <EmptyState icon="chef" title="Todavía no hay pedidos hechos">
+            <p>Cuando marques un pedido como listo, aparecerá aquí.</p>
+          </EmptyState>
+        ) : (
+          <ul className={s.grid}>
+            {doneList.map((o) => (
+              <li key={o.id}>
+                <Card className={s.item}>
+                  <div className={s.itemHead}>
+                    <p className={styles.time}>
+                      <Icon name="clock" size={20} /> {formatTime(o.deliveryTime)}
+                    </p>
+                    <StatusChip status={o.status} />
+                  </div>
+                  <p className={styles.dish}>
+                    {o.items.length > 1 ? (
+                      o.items.map((item) => (
+                        <span key={item.dishName} className={styles.dishLine}>
+                          <span className={styles.qty}>{item.quantity}×</span> {item.dishName}
+                        </span>
+                      ))
+                    ) : (
+                      <>
+                        <span className={styles.qty}>{o.quantity}×</span> {o.dishName}
+                      </>
+                    )}
+                  </p>
+                  <p className={s.itemMeta}>Pedido #{o.id}</p>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       )}
     </>
   );

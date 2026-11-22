@@ -6,6 +6,7 @@ import com.example.mealupp.model.OrderStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 /**
  * Respuesta al crear un pedido. "accessCode" sirve para consultar el pedido sin iniciar sesión y
@@ -24,12 +25,13 @@ public record CreatedOrderResponse(
     OrderStatus status,
     BigDecimal total,
     String accessCode,
-    String paymentUrl) {
+    String paymentUrl,
+    List<OrderItemView> items) {
 
   public static CreatedOrderResponse from(Order order, String paymentUrl) {
     return new CreatedOrderResponse(
         order.getId(),
-        order.getDish().getName(),
+        order.dishSummary(),
         order.getQuantity(),
         order.getCustomerName(),
         order.getOrderDate(),
@@ -39,6 +41,7 @@ public record CreatedOrderResponse(
         order.getStatus(),
         order.getTotal(),
         order.getAccessCode(),
-        paymentUrl);
+        paymentUrl,
+        OrderItemView.listOf(order));
   }
 }

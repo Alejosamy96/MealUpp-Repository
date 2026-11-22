@@ -6,6 +6,7 @@ import com.example.mealupp.model.OrderStatus;
 import com.example.mealupp.model.TicketStatus;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,19 +21,21 @@ public record KitchenTicketView(
     LocalTime deliveryTime,
     OrderStatus orderStatus,
     TicketStatus ticketStatus,
-    boolean customerArrived) {
+    boolean customerArrived,
+    List<OrderItemView> items) {
 
   public static KitchenTicketView from(KitchenTicket ticket) {
     Order order = ticket.getCustomerOrder();
     return new KitchenTicketView(
         ticket.getId(),
         order.getId(),
-        order.getDish().getName(),
+        order.dishSummary(),
         order.getQuantity(),
         order.getDeliveryTime(),
         order.getStatus(),
         ticket.getStatus(),
-        order.getArrivedAt() != null);
+        order.getArrivedAt() != null,
+        OrderItemView.listOf(order));
   }
 
   /** Datos del mensaje que se publica por WebSocket. "event" es CREATED o UPDATED. */
@@ -47,6 +50,7 @@ public record KitchenTicketView(
     map.put("orderStatus", orderStatus);
     map.put("ticketStatus", ticketStatus);
     map.put("customerArrived", customerArrived);
+    map.put("items", OrderItemView.asMaps(items));
     return map;
   }
 }

@@ -36,6 +36,15 @@ public class RoleOrderViewService {
         .toList();
   }
 
+  /** Cocina, pedidos ya hechos: los de hoy que se marcaron listos o ya se entregaron. */
+  @Transactional(readOnly = true)
+  public List<KitchenOrderView> kitchenDoneOrders() {
+    return todayOrders().stream()
+        .filter(o -> o.getStatus() == OrderStatus.READY || o.getStatus() == OrderStatus.DELIVERED)
+        .map(KitchenOrderView::from)
+        .toList();
+  }
+
   /** Caja: todos los pedidos de hoy con su valor. */
   @Transactional(readOnly = true)
   public List<CashierOrderView> cashierOrders() {
@@ -45,13 +54,23 @@ public class RoleOrderViewService {
   /** Entrega: pedidos de hoy que cocina ya dejó listos, opcionalmente de una zona. */
   @Transactional(readOnly = true)
   public List<DeliveryOrderView> deliveryOrders(DeliveryZone zone) {
+    return deliveryOrdersWithStatus(zone, OrderStatus.READY);
+  }
+
+  /** Entrega, pedidos ya entregados hoy (con los datos del cliente y del pedido). */
+  @Transactional(readOnly = true)
+  public List<DeliveryOrderView> deliveredOrders(DeliveryZone zone) {
+    return deliveryOrdersWithStatus(zone, OrderStatus.DELIVERED);
+  }
+
+  private List<DeliveryOrderView> deliveryOrdersWithStatus(DeliveryZone zone, OrderStatus status) {
     List<Order> orders =
         zone == null
             ? todayOrders()
             : orderRepository.findByOrderDateAndDeliveryZoneOrderByDeliveryTimeAsc(
                 LocalDate.now(clock), zone);
     return orders.stream()
-        .filter(o -> o.getStatus() == OrderStatus.READY)
+        .filter(o -> o.getStatus() == status)
         .map(DeliveryOrderView::from)
         .toList();
   }

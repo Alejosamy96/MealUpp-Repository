@@ -10,7 +10,7 @@ import { Icon } from "../../components/Icon";
 import { Tabs } from "../../components/Tabs";
 import { EmptyState, Notice, PageHeader, StatusChip } from "../../components/ui";
 import { FINAL_STATUSES } from "../../config/labels";
-import { formatDate, formatTime, nowInZone } from "../../lib/format";
+import { formatDate, formatTime, itemsText, nowInZone } from "../../lib/format";
 import { ordersStore, useStoredOrders, type StoredOrder } from "../../services/ordersStore";
 import styles from "./MyOrdersPage.module.css";
 
@@ -125,8 +125,8 @@ export function MyOrdersPage() {
                   <DishImage name={o.dishName} className={styles.thumb} iconSize={26} />
                   <div className={styles.info}>
                     <p className={styles.dish}>
-                      {o.dishName}
-                      {o.quantity > 1 && <span className={styles.qty}> × {o.quantity}</span>}
+                      {o.items && o.items.length > 1 ? itemsText(o.items, o.dishName, o.quantity) : o.dishName}
+                      {(!o.items || o.items.length <= 1) && o.quantity > 1 && <span className={styles.qty}> × {o.quantity}</span>}
                     </p>
                     <p className={styles.when}>
                       {formatDate(o.orderDate)} · <span className={styles.nowrap}>{formatTime(o.deliveryTime)}</span>
@@ -157,7 +157,7 @@ export function MyOrdersPage() {
               {arrivable.map((o) => (
                 <li key={o.id} className={styles.arrivalRow}>
                   <span>
-                    {o.dishName} · {formatTime(o.deliveryTime)}
+                    {itemsText(o.items, o.dishName, o.quantity)} · {formatTime(o.deliveryTime)}
                   </span>
                   {o.arrived ? (
                     <span className={styles.soonRow}>¡Avisaste tu llegada!</span>

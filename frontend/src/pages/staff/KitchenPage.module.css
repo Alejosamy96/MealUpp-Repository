@@ -6,3 +6,4 @@
 .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .dish { font-size: 1.15rem; font-weight: 800; }
 .qty { color: var(--color-terracotta-dark); font-size: 1.4rem; }
+.dishLine { display: block; }
