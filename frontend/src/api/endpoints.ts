@@ -7,6 +7,7 @@ import type {
   DailyOrdersResponse,
   DeliveryOrder,
   DeliveryZone,
+  KitchenOrder,
   KitchenTicket,
   LoginResponse,
   MenuResponse,
@@ -52,10 +53,13 @@ export const staffApi = {
   updateStatus: (id: number, status: OrderStatus) =>
     request<StaffOrder>("PATCH", `/api/staff/orders/${q(id)}/status`, { auth, body: { status } }),
 
+  kitchenDone: (signal?: AbortSignal) => request<KitchenOrder[]>("GET", "/api/staff/kitchen/done", { auth, signal }),
   kitchenTickets: (signal?: AbortSignal) =>
     request<KitchenTicket[]>("GET", "/api/staff/kitchen/tickets", { auth, signal }),
   cashierOrders: (signal?: AbortSignal) =>
     request<CashierOrder[]>("GET", "/api/staff/cashier/orders", { auth, signal }),
+  deliveredOrders: (zone?: DeliveryZone | "", signal?: AbortSignal) =>
+    request<DeliveryOrder[]>("GET", `/api/staff/delivery/delivered${zoneParam(zone)}`, { auth, signal }),
   deliveryOrders: (zone?: DeliveryZone | "", signal?: AbortSignal) =>
     request<DeliveryOrder[]>("GET", `/api/staff/delivery/orders${zoneParam(zone)}`, { auth, signal }),
 

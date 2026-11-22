@@ -80,19 +80,27 @@ Platos disponibles. Si no hay ninguno, `dishes` viene vacío y `message` trae el
 Crea un pedido. Responde `201`.
 
 ```json
-{ "dishId": 1, "quantity": 2, "customerName": "Valentina",
+{ "items": [ { "dishId": 1, "quantity": 2 }, { "dishId": 3, "quantity": 1 } ],
+  "customerName": "Valentina",
   "deliveryTime": "12:00", "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12" }
 ```
+
+Un mismo pedido puede combinar varios platos con `items` (si un plato se repite, se suman sus cantidades). La regla de cantidad (mínimo y máximo de `/api/config`) cuenta **todos los almuerzos juntos**, y cada plato debe tener al menos 1. Para un solo plato también sirve la forma anterior: `{ "dishId": 1, "quantity": 2, ... }`. Si llegan `items`, se usan esos.
 
 Respuesta:
 
 ```json
-{ "id": 7, "dishName": "Pollo a la plancha", "quantity": 2, "customerName": "Valentina",
+{ "id": 7, "dishName": "Pollo a la plancha + Sopa del día", "quantity": 3,
+  "items": [ { "dishName": "Pollo a la plancha", "quantity": 2 },
+             { "dishName": "Sopa del día", "quantity": 1 } ],
+  "customerName": "Valentina",
   "orderDate": "2026-11-04", "deliveryTime": "12:00:00", "deliveryZone": "SHOPPING_CENTER",
-  "deliveryDetail": "Local 12", "status": "PENDING_PAYMENT", "total": 24000,
+  "deliveryDetail": "Local 12", "status": "PENDING_PAYMENT", "total": 33000,
   "accessCode": "K7M2XQ9PTD",
   "paymentUrl": "https://mealupp.com/pago-simulado?reference=SBX-..." }
 ```
+
+`quantity` es el total de almuerzos y `dishName` une los nombres con `+`; el detalle por plato está en `items`. Todas las respuestas y avisos que muestran un pedido traen `items` (en caja, con `unitPrice` por plato).
 
 - **Guarda `id` y `accessCode`** (por ejemplo en `localStorage`): son la única forma de que el cliente consulte su pedido.
 - Si `paymentUrl` no es `null`, lleva al cliente a esa dirección para que pague. Con pago desactivado viene `null` y el estado es `PENDING`.
@@ -176,10 +184,12 @@ Con el token. Responde `204` y el token deja de servir.
 |---|---|---|
 | `GET /api/staff/orders?zone=SHOPPING_CENTER` | `ADMIN` | `{ date, totalLunches, orders: [...] }`. `zone` es opcional. `totalLunches` cuenta solo pedidos confirmados |
 | `PATCH /api/staff/orders/{id}/status` con `{ "status": "IN_PREPARATION" }` | todos los roles, según la tabla de arriba | El pedido actualizado. `403` si el rol no puede hacer ese cambio; `400` si el cambio no es válido |
-| `GET /api/staff/kitchen/orders` | `KITCHEN`, `ADMIN` | `[{ id, dishName, quantity, deliveryTime, status }]` (sin datos del cliente) |
+| `GET /api/staff/kitchen/orders` | `KITCHEN`, `ADMIN` | `[{ id, dishName, quantity, deliveryTime, status, items }]` (sin datos del cliente) |
 | `GET /api/staff/kitchen/tickets` | `KITCHEN`, `ADMIN` | Comandas que siguen en cocina: pedidos `PENDING` o `IN_PREPARATION` (ver WebSocket). Úsalo al abrir o reconectar la pantalla de cocina |
-| `GET /api/staff/cashier/orders` | `CASHIER`, `ADMIN` | `[{ id, customerName, dishName, quantity, unitPrice, total, status }]` |
-| `GET /api/staff/delivery/orders?zone=...` | `DELIVERY`, `ADMIN` | `[{ id, customerName, dishName, quantity, deliveryTime, deliveryZone, deliveryDetail, status }]`, solo los que están en `READY` (cocina ya los dejó listos) |
+| `GET /api/staff/kitchen/done` | `KITCHEN`, `ADMIN` | Pedidos de hoy que cocina ya dejó listos (`READY`) o que ya se entregaron (`DELIVERED`), con la misma forma que `kitchen/orders` (incluye `items`). La pantalla de cocina los muestra en la pestaña «Ya hechos» |
+| `GET /api/staff/cashier/orders` | `CASHIER`, `ADMIN` | `[{ id, customerName, dishName, quantity, unitPrice, total, status, items: [{ dishName, quantity, unitPrice }] }]` |
+| `GET /api/staff/delivery/delivered?zone=...` | `DELIVERY`, `ADMIN` | Igual que `delivery/orders`, pero de los pedidos de hoy que ya están en `DELIVERED`. La pantalla de entrega los muestra en la pestaña «Entregados» |
+| `GET /api/staff/delivery/orders?zone=...` | `DELIVERY`, `ADMIN` | `[{ id, customerName, dishName, quantity, deliveryTime, deliveryZone, deliveryDetail, status, customerArrived, items }]`, solo los que están en `READY` (cocina ya los dejó listos) |
 
 Una persona que abre la pantalla de otro rol recibe `403` con "No tienes permiso para entrar a esta sección".
 
@@ -243,7 +253,8 @@ El cuerpo de cada mensaje es **texto JSON** (haz `JSON.parse(frame.body)`).
 `/topic/comandas`:
 ```json
 { "event": "CREATED", "ticketId": 4, "orderId": 7, "dishName": "Pollo a la plancha",
-  "quantity": 2, "deliveryTime": "12:30", "orderStatus": "PENDING", "ticketStatus": "SENT" }
+  "quantity": 2, "deliveryTime": "12:30", "orderStatus": "PENDING", "ticketStatus": "SENT", "customerArrived": false,
+  "items": [ { "dishName": "Pollo a la plancha", "quantity": 2 } ] }
 ```
 `event` es `CREATED` o `UPDATED`. Muestra la comanda mientras `orderStatus` sea `PENDING` o `IN_PREPARATION`, y quítala cuando sea `READY`, `CANCELLED` o `DELIVERED`.
 
@@ -251,7 +262,8 @@ El cuerpo de cada mensaje es **texto JSON** (haz `JSON.parse(frame.body)`).
 ```json
 { "event": "ORDER_CHANGED", "id": 7, "dishName": "Pollo a la plancha", "quantity": 2,
   "customerName": "Valentina", "orderDate": "2026-11-04", "deliveryTime": "12:30",
-  "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12", "status": "IN_PREPARATION", "total": 24000 }
+  "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12", "status": "IN_PREPARATION", "total": 24000,
+  "items": [ { "dishName": "Pollo a la plancha", "quantity": 2 } ] }
 ```
 
 Ejemplo con `@stomp/stompjs`:

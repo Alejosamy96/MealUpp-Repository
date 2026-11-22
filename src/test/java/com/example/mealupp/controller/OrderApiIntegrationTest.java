@@ -122,6 +122,29 @@ class OrderApiIntegrationTest {
   }
 
   @Test
+  void multi_oneOrderWithSeveralDishesShowsEachOneToKitchenAndDelivery() throws Exception {
+    Long soupId =
+        dishRepository
+            .save(new Dish("Sopa del día", "Con pan", new BigDecimal("9000"), true))
+            .getId();
+    String json =
+        """
+        {"items": [{"dishId": %d, "quantity": 2}, {"dishId": %d, "quantity": 1}],
+         "customerName": "Valentina", "deliveryTime": "12:00",
+         "deliveryZone": "SHOPPING_CENTER", "deliveryDetail": "Local 12"}
+        """
+            .formatted(dishId, soupId);
+
+    mockMvc
+        .perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content(json))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.quantity").value(3))
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].dishName").value("Pollo a la plancha"))
+        .andExpect(jsonPath("$.items[1].quantity").value(1));
+  }
+
+  @Test
   void cp10_deliveryZoneOutsideCoverageIsRejected() throws Exception {
     mockMvc
         .perform(

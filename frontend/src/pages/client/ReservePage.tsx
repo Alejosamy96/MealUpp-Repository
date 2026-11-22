@@ -1,4 +1,5 @@
-// Flujo de reserva: plato, cantidad, nombre, hora, zona y detalle de entrega, resumen y confirmación.
+// Flujo de reserva: platos y cantidades, nombre, hora, zona y detalle de entrega, resumen y confirmación.
+// Un mismo pedido puede combinar varios platos (por ejemplo 2 almuerzos de uno y 1 de otro).
 // Las reglas (hora límite, ventana de entrega, cantidades, zonas) vienen de GET /api/config.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -17,7 +18,7 @@ import { ordersStore } from "../../services/ordersStore";
 import { profileStore, useProfile } from "../../services/profileStore";
 import styles from "./ReservePage.module.css";
 
-type Errors = Partial<Record<"dish" | "quantity" | "name" | "time" | "zone" | "detail", string>>;
+type Errors = Partial<Record<"quantity" | "name" | "time" | "zone" | "detail", string>>;
 
 const NAME_MAX = 80;
 const DETAIL_MAX = 160;
@@ -29,11 +30,11 @@ export function ReservePage() {
   const config = useConfig();
   const menu = useAsync((signal) => publicApi.menu(signal), []);
 
-  const [dishId, setDishId] = useState<number | null>(() => {
+  // Cuántos almuerzos de cada plato (clave: id del plato). Solo se guardan los mayores que 0.
+  const [counts, setCounts] = useState<Record<number, number>>(() => {
     const p = Number(params.get("plato"));
-    return Number.isFinite(p) && p > 0 ? p : null;
+    return Number.isFinite(p) && p > 0 ? { [p]: 1 } : {};
   });
-  const [quantity, setQuantity] = useState(1);
   const [name, setName] = useState(profile.name);
   const [time, setTime] = useState("");
   const [zone, setZone] = useState<DeliveryZone | "">("");
@@ -46,20 +47,30 @@ export function ReservePage() {
 
   const cfg = config.data;
   const dishes = menu.data?.dishes ?? [];
-  const dish = dishes.find((d) => d.id === dishId);
+  const chosen = dishes.filter((d) => (counts[d.id] ?? 0) > 0);
+  const quantity = chosen.reduce((sum, d) => sum + (counts[d.id] ?? 0), 0);
   const slots = useMemo(() => (cfg ? deliverySlots(cfg.deliveryStart, cfg.deliveryEnd) : []), [cfg]);
   const now = nowInZone(cfg?.timeZone);
   const pastCutoff = cfg ? toMinutes(now.time) >= toMinutes(cfg.cutoffTime) : false;
-  const total = dish ? dish.price * quantity : 0;
+  const total = chosen.reduce((sum, d) => sum + d.price * (counts[d.id] ?? 0), 0);
+  const changeCount = (id: number, delta: number) => {
+    setCounts((current) => {
+      const next = Math.max(0, (current[id] ?? 0) + delta);
+      const { [id]: _removed, ...rest } = current;
+      return next > 0 ? { ...rest, [id]: next } : rest;
+    });
+    clearError("quantity");
+  };
 
-  // Si el plato de la URL no está en el menú de hoy, no se deja preseleccionado.
+  // Si un plato elegido (por ejemplo, el de la URL) no está en el menú de hoy, se quita.
   useEffect(() => {
-    if (menu.data && dishId !== null && !menu.data.dishes.some((d) => d.id === dishId)) setDishId(null);
-  }, [menu.data, dishId]);
-
-  useEffect(() => {
-    if (cfg) setQuantity((q) => Math.min(Math.max(q, cfg.minQuantity), cfg.maxQuantity));
-  }, [cfg]);
+    const menuDishes = menu.data?.dishes;
+    if (!menuDishes) return;
+    setCounts((current) => {
+      const kept = Object.entries(current).filter(([id]) => menuDishes.some((d) => d.id === Number(id)));
+      return kept.length === Object.keys(current).length ? current : Object.fromEntries(kept);
+    });
+  }, [menu.data]);
 
   if ((config.loading && !cfg) || (menu.loading && !menu.data)) {
     return <Loading label="Preparando tu reserva…" />;
@@ -71,8 +82,8 @@ export function ReservePage() {
 
   const validate = (): Errors => {
     const e: Errors = {};
-    if (!dish) e.dish = "Elige un plato.";
-    if (!Number.isInteger(quantity) || quantity < cfg.minQuantity || quantity > cfg.maxQuantity)
+    if (chosen.length === 0) e.quantity = "Elige al menos un almuerzo.";
+    else if (quantity < cfg.minQuantity || quantity > cfg.maxQuantity)
       e.quantity = `La cantidad debe estar entre ${cfg.minQuantity} y ${cfg.maxQuantity}.`;
     if (!name.trim()) e.name = "Escribe tu nombre para saber a quién entregar.";
     if (!time) e.time = `Elige una hora entre ${formatTime(cfg.deliveryStart)} y ${formatTime(cfg.deliveryEnd)}`;
@@ -91,12 +102,11 @@ export function ReservePage() {
       first?.focus();
       return;
     }
-    if (!dish || !zone) return;
+    if (chosen.length === 0 || !zone) return;
     setSubmitting(true);
     try {
       const created = await publicApi.createOrder({
-        dishId: dish.id,
-        quantity,
+        items: chosen.map((d) => ({ dishId: d.id, quantity: counts[d.id] ?? 0 })),
         customerName: name.trim(),
         deliveryTime: time,
         deliveryZone: zone,
@@ -134,58 +144,49 @@ export function ReservePage() {
       )}
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
-        <fieldset className={styles.fieldset} data-invalid={Boolean(errors.dish) || undefined} aria-describedby={errors.dish ? "dish-error" : undefined}>
-          <legend className={styles.legend}>1. Elige tu plato</legend>
+        <fieldset className={styles.fieldset} data-invalid={Boolean(errors.quantity) || undefined} aria-describedby={errors.quantity ? "quantity-error" : "quantity-hint"}>
+          <legend className={styles.legend}>1. Elige tus almuerzos</legend>
           {dishes.length === 0 ? (
             <Notice tone="info">{menu.data?.message ?? "Hoy no hay platos disponibles."}</Notice>
           ) : (
-            <div className={styles.dishList}>
-              {dishes.map((d) => (
-                <label key={d.id} className={`${styles.dishOption} ${dishId === d.id ? styles.dishSelected : ""}`}>
-                  <input
-                    type="radio"
-                    name="dish"
-                    value={d.id}
-                    checked={dishId === d.id}
-                    onChange={() => { setDishId(d.id); clearError("dish"); }}
-                    className="visually-hidden"
-                    aria-invalid={Boolean(errors.dish) || undefined}
-                  />
-                  <DishImage name={d.name} src={d.thumbnailUrl} className={styles.dishThumb} iconSize={22} />
-                  <span className={styles.dishText}>
-                    <span className={styles.dishName}>{d.name}</span>
-                    {d.description && <span className={styles.dishDesc}>{d.description}</span>}
-                  </span>
-                  <span className={styles.dishPrice}>{formatCOP(d.price)}</span>
-                  <span className={styles.radioMark} aria-hidden="true">
-                    {dishId === d.id && <Icon name="check" size={16} />}
-                  </span>
-                </label>
-              ))}
-            </div>
+            <>
+              <p id="quantity-hint" className={styles.hint}>
+                Pide uno o varios, y combina los platos que quieras: por ejemplo 2 de uno y 1 de otro. Entre {cfg.minQuantity} y {cfg.maxQuantity} almuerzos por pedido.
+              </p>
+              <div className={styles.dishList}>
+                {dishes.map((d) => {
+                  const count = counts[d.id] ?? 0;
+                  return (
+                    <div key={d.id} className={`${styles.dishRow} ${count > 0 ? styles.dishSelected : ""}`}>
+                      <DishImage name={d.name} src={d.thumbnailUrl} className={styles.dishThumb} iconSize={22} />
+                      <span className={styles.dishText}>
+                        <span className={styles.dishName}>{d.name}</span>
+                        {d.description && <span className={styles.dishDesc}>{d.description}</span>}
+                        <span className={styles.dishPrice}>{formatCOP(d.price)}</span>
+                      </span>
+                      <div className={`${styles.stepper} ${styles.miniStepper}`} role="group" aria-label={`Cantidad de ${d.name}`}>
+                        <button type="button" onClick={() => changeCount(d.id, -1)} disabled={count <= 0} aria-label={`Quitar uno de ${d.name}`}>
+                          <Icon name="minus" size={18} />
+                        </button>
+                        <output aria-live="polite" aria-label={`${count} de ${d.name}`}>{count}</output>
+                        <button type="button" onClick={() => changeCount(d.id, 1)} disabled={quantity >= cfg.maxQuantity} aria-label={`Agregar uno de ${d.name}`}>
+                          <Icon name="plus" size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className={styles.count} aria-live="polite">
+                {quantity === 0 ? "Aún no has elegido almuerzos." : `Llevas ${quantity} ${quantity === 1 ? "almuerzo" : "almuerzos"}.`}
+              </p>
+            </>
           )}
-          {errors.dish && <p id="dish-error" className={styles.error} role="alert">{errors.dish}</p>}
+          {errors.quantity && <p id="quantity-error" className={styles.error} role="alert">{errors.quantity}</p>}
         </fieldset>
 
         <fieldset className={styles.fieldset}>
-          <legend className={styles.legend}>2. ¿Cuántos almuerzos?</legend>
-          <div className={styles.stepper} role="group" aria-label="Cantidad de almuerzos">
-            <button type="button" onClick={() => setQuantity((q) => Math.max(cfg.minQuantity, q - 1))} disabled={quantity <= cfg.minQuantity} aria-label="Quitar uno">
-              <Icon name="minus" size={20} />
-            </button>
-            <output aria-live="polite" aria-label={`${quantity} almuerzos`}>{quantity}</output>
-            <button type="button" onClick={() => setQuantity((q) => Math.min(cfg.maxQuantity, q + 1))} disabled={quantity >= cfg.maxQuantity} aria-label="Agregar uno">
-              <Icon name="plus" size={20} />
-            </button>
-          </div>
-          <p className={styles.hint}>
-            Entre {cfg.minQuantity} y {cfg.maxQuantity} por pedido.
-          </p>
-          {errors.quantity && <p className={styles.error} role="alert">{errors.quantity}</p>}
-        </fieldset>
-
-        <fieldset className={styles.fieldset}>
-          <legend className={styles.legend}>3. Datos de entrega</legend>
+          <legend className={styles.legend}>2. Datos de entrega</legend>
           <div className={styles.fields}>
             <TextField
               label="Tu nombre"
@@ -239,16 +240,19 @@ export function ReservePage() {
         <Card className={styles.summary} aria-labelledby="summary-title">
           <h2 id="summary-title" className={styles.summaryTitle}>Resumen</h2>
           <dl className={styles.summaryList}>
-            <div>
-              <dt>Plato</dt>
-              <dd>{dish?.name ?? "—"}</dd>
-            </div>
-            <div>
-              <dt>Cantidad</dt>
-              <dd>
-                {quantity} × {dish ? formatCOP(dish.price) : "—"}
-              </dd>
-            </div>
+            {chosen.length === 0 ? (
+              <div>
+                <dt>Almuerzos</dt>
+                <dd>—</dd>
+              </div>
+            ) : (
+              chosen.map((d) => (
+                <div key={d.id}>
+                  <dt>{counts[d.id]} × {d.name}</dt>
+                  <dd>{formatCOP(d.price * (counts[d.id] ?? 0))}</dd>
+                </div>
+              ))
+            )}
             <div>
               <dt>Entrega</dt>
               <dd>{time ? formatTime(time) : "—"}</dd>

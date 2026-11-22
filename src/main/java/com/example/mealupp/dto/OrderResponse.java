@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public record OrderResponse(
@@ -19,12 +20,13 @@ public record OrderResponse(
     DeliveryZone deliveryZone,
     String deliveryDetail,
     OrderStatus status,
-    BigDecimal total) {
+    BigDecimal total,
+    List<OrderItemView> items) {
 
   public static OrderResponse from(Order order) {
     return new OrderResponse(
         order.getId(),
-        order.getDish().getName(),
+        order.dishSummary(),
         order.getQuantity(),
         order.getCustomerName(),
         order.getOrderDate(),
@@ -32,7 +34,8 @@ public record OrderResponse(
         order.getDeliveryZone(),
         order.getDeliveryDetail(),
         order.getStatus(),
-        order.getTotal());
+        order.getTotal(),
+        OrderItemView.listOf(order));
   }
 
   /** Datos del mensaje que se publica por WebSocket cuando cambia un pedido. */
@@ -49,6 +52,7 @@ public record OrderResponse(
     map.put("deliveryDetail", deliveryDetail);
     map.put("status", status);
     map.put("total", total);
+    map.put("items", OrderItemView.asMaps(items));
     return map;
   }
 }

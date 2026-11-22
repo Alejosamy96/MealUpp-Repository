@@ -12,6 +12,7 @@ import com.example.mealupp.config.PaymentProperties;
 import com.example.mealupp.dto.CreateOrderRequest;
 import com.example.mealupp.dto.CreatedOrderResponse;
 import com.example.mealupp.dto.DailyOrdersResponse;
+import com.example.mealupp.dto.OrderItemRequest;
 import com.example.mealupp.dto.OrderResponse;
 import com.example.mealupp.exception.BusinessRuleException;
 import com.example.mealupp.exception.ForbiddenActionException;
@@ -90,7 +91,7 @@ class OrderServiceTest {
 
   private static CreateOrderRequest request(int quantity, LocalTime deliveryTime) {
     return new CreateOrderRequest(
-        1L, quantity, "Valentina", deliveryTime, DeliveryZone.SHOPPING_CENTER, "Local 12");
+        1L, quantity, null, "Valentina", deliveryTime, DeliveryZone.SHOPPING_CENTER, "Local 12");
   }
 
   private void dishExistsAndSaveWorks() {
@@ -578,5 +579,119 @@ class OrderServiceTest {
     assertThatThrownBy(() -> service.notifyArrival(7L, "CODIGO-FALSO"))
         .isInstanceOf(NotFoundException.class);
     assertThat(reserved.getArrivedAt()).isNull();
+  }
+
+  // ---------- Varios platos en un mismo pedido ----------
+
+  private static CreateOrderRequest requestOf(OrderItemRequest... items) {
+    return new CreateOrderRequest(
+        null,
+        null,
+        List.of(items),
+        "Valentina",
+        LocalTime.of(12, 0),
+        DeliveryZone.SHOPPING_CENTER,
+        "Local 12");
+  }
+
+  private Dish soup() {
+    return new Dish("Sopa del día", "Con pan", new BigDecimal("9000"), true);
+  }
+
+  @Test
+  void multi01_oneOrderCanHaveSeveralDishes() {
+    when(dishRepository.findById(1L)).thenReturn(Optional.of(availableDish));
+    when(dishRepository.findById(2L)).thenReturn(Optional.of(soup()));
+    when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    CreatedOrderResponse response =
+        serviceAt(LocalTime.of(9, 0))
+            .createOrder(requestOf(new OrderItemRequest(1L, 2), new OrderItemRequest(2L, 1)));
+
+    assertThat(response.quantity()).isEqualTo(3);
+    assertThat(response.total()).isEqualByComparingTo("33000");
+    assertThat(response.dishName()).isEqualTo("Pollo a la plancha + Sopa del día");
+    assertThat(response.items()).hasSize(2);
+    assertThat(response.items().get(0).quantity()).isEqualTo(2);
+    assertThat(response.items().get(1).dishName()).isEqualTo("Sopa del día");
+  }
+
+  @Test
+  void multi02_theSameDishTwiceIsMerged() {
+    dishExistsAndSaveWorks();
+
+    CreatedOrderResponse response =
+        serviceAt(LocalTime.of(9, 0))
+            .createOrder(requestOf(new OrderItemRequest(1L, 2), new OrderItemRequest(1L, 3)));
+
+    assertThat(response.items()).hasSize(1);
+    assertThat(response.quantity()).isEqualTo(5);
+    assertThat(response.total()).isEqualByComparingTo("60000");
+  }
+
+  @Test
+  void multi03_theLimitCountsAllDishesTogether() {
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest tooMany =
+        requestOf(new OrderItemRequest(1L, 6), new OrderItemRequest(2L, 5));
+
+    assertThatThrownBy(() -> service.createOrder(tooMany))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("cantidad");
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  void multi04_everyDishNeedsAtLeastOneLunch() {
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest negative =
+        requestOf(new OrderItemRequest(1L, 3), new OrderItemRequest(2L, -1));
+
+    assertThatThrownBy(() -> service.createOrder(negative))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("al menos 1");
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  void multi05_anOrderWithoutDishesIsRejected() {
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest empty =
+        new CreateOrderRequest(
+            null,
+            null,
+            null,
+            "Valentina",
+            LocalTime.of(12, 0),
+            DeliveryZone.SHOPPING_CENTER,
+            "Local 12");
+
+    assertThatThrownBy(() -> service.createOrder(empty))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("al menos un plato");
+  }
+
+  @Test
+  void multi06_oneUnavailableDishRejectsTheWholeOrder() {
+    when(dishRepository.findById(1L)).thenReturn(Optional.of(availableDish));
+    when(dishRepository.findById(2L))
+        .thenReturn(Optional.of(new Dish("Pasta", "Agotada", new BigDecimal("11000"), false)));
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest order = requestOf(new OrderItemRequest(1L, 1), new OrderItemRequest(2L, 1));
+
+    assertThatThrownBy(() -> service.createOrder(order))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("no está disponible");
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  void multi07_anOldOrderWithoutItemsStillShowsItsDish() {
+    Order old = order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
+    ReflectionTestUtils.setField(old, "items", new java.util.ArrayList<>());
+
+    assertThat(old.lines()).hasSize(1);
+    assertThat(old.lines().get(0).quantity()).isEqualTo(2);
+    assertThat(old.dishSummary()).isEqualTo("Pollo a la plancha");
   }
 }

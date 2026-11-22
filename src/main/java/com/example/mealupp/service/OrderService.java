@@ -5,6 +5,7 @@ import com.example.mealupp.config.PaymentProperties;
 import com.example.mealupp.dto.CreateOrderRequest;
 import com.example.mealupp.dto.CreatedOrderResponse;
 import com.example.mealupp.dto.DailyOrdersResponse;
+import com.example.mealupp.dto.OrderItemRequest;
 import com.example.mealupp.dto.OrderResponse;
 import com.example.mealupp.dto.OrderTrackingResponse;
 import com.example.mealupp.exception.BusinessRuleException;
@@ -14,6 +15,7 @@ import com.example.mealupp.integration.notification.KitchenNotifier;
 import com.example.mealupp.model.DeliveryZone;
 import com.example.mealupp.model.Dish;
 import com.example.mealupp.model.Order;
+import com.example.mealupp.model.OrderLine;
 import com.example.mealupp.model.OrderStatus;
 import com.example.mealupp.model.StaffRole;
 import com.example.mealupp.repository.DishRepository;
@@ -22,7 +24,10 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,15 +72,18 @@ public class OrderService {
   public CreatedOrderResponse createOrder(CreateOrderRequest request) {
     LocalDateTime now = LocalDateTime.now(clock);
     validateCutoff(now.toLocalTime());
-    validateQuantity(request.quantity());
+    Map<Long, Integer> requested = requestedQuantities(request);
+    validateQuantity(requested.values().stream().mapToInt(Integer::intValue).sum());
+    validateEachQuantity(requested);
     validateDeliveryTime(request.deliveryTime());
     validateDailyLimit(now.toLocalDate());
-    Dish dish = findAvailableDish(request.dishId());
+    List<OrderLine> lines = new ArrayList<>();
+    requested.forEach(
+        (dishId, quantity) -> lines.add(OrderLine.of(findAvailableDish(dishId), quantity)));
 
     Order order =
         new Order(
-            dish,
-            request.quantity(),
+            lines,
             request.customerName().trim(),
             now.toLocalDate(),
             request.deliveryTime(),
@@ -92,6 +100,25 @@ public class OrderService {
     Order saved = orderRepository.save(order);
     confirmationService.confirm(saved);
     return CreatedOrderResponse.from(saved, null);
+  }
+
+  /** Cantidad pedida por plato. Si un plato se repite, se suman sus cantidades. */
+  private Map<Long, Integer> requestedQuantities(CreateOrderRequest request) {
+    List<OrderItemRequest> lines = request.lines();
+    if (lines.isEmpty()) {
+      throw new BusinessRuleException("Elige al menos un plato");
+    }
+    Map<Long, Integer> requested = new LinkedHashMap<>();
+    for (OrderItemRequest line : lines) {
+      requested.merge(line.dishId(), line.quantity(), Integer::sum);
+    }
+    return requested;
+  }
+
+  private void validateEachQuantity(Map<Long, Integer> requested) {
+    if (requested.values().stream().anyMatch(quantity -> quantity < 1)) {
+      throw new BusinessRuleException("De cada plato pide al menos 1 almuerzo");
+    }
   }
 
   private void validateCutoff(LocalTime now) {

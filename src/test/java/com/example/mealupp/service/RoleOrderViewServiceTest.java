@@ -84,6 +84,15 @@ class RoleOrderViewServiceTest {
   }
 
   @Test
+  void kitchenDoneListsTheOrdersAlreadyReadyOrDelivered() {
+    todayHasOneOrderOfEachStatus();
+
+    assertThat(service.kitchenDoneOrders())
+        .extracting(KitchenOrderView::status)
+        .containsExactly(OrderStatus.DELIVERED, OrderStatus.READY);
+  }
+
+  @Test
   void cashierSeesEveryOrderOfTodayWithItsTotal() {
     todayHasOneOrderOfEachStatus();
 
@@ -106,6 +115,16 @@ class RoleOrderViewServiceTest {
 
     assertThat(service.deliveryOrders(null)).extracting(DeliveryOrderView::quantity).hasSize(1);
     assertThat(fields(DeliveryOrderView.class)).doesNotContain("unitPrice", "total");
+  }
+
+  @Test
+  void deliveredListsOnlyTheOrdersAlreadyDeliveredWithTheirData() {
+    todayHasOneOrderOfEachStatus();
+
+    assertThat(service.deliveredOrders(null))
+        .extracting(DeliveryOrderView::status)
+        .containsExactly(OrderStatus.DELIVERED);
+    assertThat(service.deliveredOrders(null).get(0).customerName()).isEqualTo("Valentina");
   }
 
   @Test
