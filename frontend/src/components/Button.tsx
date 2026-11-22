@@ -53,3 +53,19 @@ export function LinkButton({ to, variant = "primary", size = "md", block, icon, 
     </Link>
   );
 }
+
+interface ExternalLinkButtonProps extends Common {
+  href: string;
+  className?: string;
+}
+
+/** Enlace a otro sitio (por ejemplo WhatsApp). Se abre en una pestaña nueva. */
+export function ExternalLinkButton({ href, variant = "primary", size = "md", block, icon, iconAfter, children, className }: ExternalLinkButtonProps) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={classes(variant, size, block, className)}>
+      {icon}
+      <span>{children}</span>
+      {iconAfter}
+    </a>
+  );
+}

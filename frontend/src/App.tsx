@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ClientLayout } from "./components/layout/ClientLayout";
-import { ComingSoonPage } from "./pages/client/ComingSoonPage";
 import { EditProfilePage } from "./pages/client/EditProfilePage";
 import { HomePage } from "./pages/client/HomePage";
 import { MenuPage } from "./pages/client/MenuPage";
 import { MyOrdersPage } from "./pages/client/MyOrdersPage";
 import { OrderStatusPage } from "./pages/client/OrderStatusPage";
+import { ProfileOptionPage } from "./pages/client/ProfileOptionPage";
 import { ProfilePage } from "./pages/client/ProfilePage";
 import { ReservePage } from "./pages/client/ReservePage";
 import { SandboxPaymentPage } from "./pages/client/SandboxPaymentPage";
@@ -31,7 +31,7 @@ export function App() {
         <Route path="mis-reservas" element={<MyOrdersPage />} />
         <Route path="perfil" element={<ProfilePage />} />
         <Route path="perfil/editar" element={<EditProfilePage />} />
-        <Route path="perfil/:opcion" element={<ComingSoonPage />} />
+        <Route path="perfil/:opcion" element={<ProfileOptionPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
