@@ -76,7 +76,7 @@ export function StaffOrdersPage() {
                     </div>
                     <p className={s.itemMeta}>
                       <span className={s.metaPart}><Icon name="clock" size={16} /> {formatTime(o.deliveryTime)}</span>
-                      <span className={s.metaPart}><Icon name="pin" size={16} /> {zoneLabel(o.deliveryZone, config.data)} · {o.deliveryDetail}</span>
+                      <span className={s.metaPart}><Icon name="pin" size={16} /> {zoneLabel(o.deliveryZone, config.data)}{o.deliveryDetail ? ` · ${o.deliveryDetail}` : ""}</span>
                     </p>
                     <p className={s.itemMeta}>Total {formatCOP(o.total)}</p>
                     <StatusActions orderId={o.id} status={o.status} onChanged={orders.reload} />

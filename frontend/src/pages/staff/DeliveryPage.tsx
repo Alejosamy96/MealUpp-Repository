@@ -42,7 +42,7 @@ export function DeliveryPage() {
         </div>
         <p className={s.itemTitle}>{o.customerName}</p>
         <p className={s.itemMeta}>
-          <Icon name="pin" size={16} /> {zoneLabel(o.deliveryZone, config.data)} · {o.deliveryDetail}
+          <Icon name="pin" size={16} /> {zoneLabel(o.deliveryZone, config.data)}{o.deliveryDetail ? ` · ${o.deliveryDetail}` : ""}
         </p>
         <p className={s.itemMeta}>
           #{o.id} · {itemsText(o.items, o.dishName, o.quantity)}

@@ -9,7 +9,8 @@ import java.util.List;
 
 /**
  * Pedido nuevo. Se pueden pedir varios platos con "items". Para un solo plato también sirven
- * "dishId" y "quantity" (así funcionaba antes); si llegan "items", se usan esos.
+ * "dishId" y "quantity" (así funcionaba antes); si llegan "items", se usan esos. El detalle de
+ * entrega es opcional en el centro comercial y obligatorio en la calle de los muebles.
  */
 public record CreateOrderRequest(
     Long dishId,
@@ -18,7 +19,7 @@ public record CreateOrderRequest(
     @NotBlank String customerName,
     @NotNull LocalTime deliveryTime,
     @NotNull DeliveryZone deliveryZone,
-    @NotBlank String deliveryDetail) {
+    String deliveryDetail) {
 
   /** Platos pedidos, venga la solicitud con "items" o con "dishId" y "quantity". */
   public List<OrderItemRequest> lines() {

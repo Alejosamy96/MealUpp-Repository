@@ -72,6 +72,7 @@ public class OrderService {
   public CreatedOrderResponse createOrder(CreateOrderRequest request) {
     LocalDateTime now = LocalDateTime.now(clock);
     validateCutoff(now.toLocalTime());
+    String deliveryDetail = cleanDeliveryDetail(request);
     Map<Long, Integer> requested = requestedQuantities(request);
     validateQuantity(requested.values().stream().mapToInt(Integer::intValue).sum());
     validateEachQuantity(requested);
@@ -91,7 +92,7 @@ public class OrderService {
             now.toLocalDate(),
             request.deliveryTime(),
             request.deliveryZone(),
-            request.deliveryDetail().trim());
+            deliveryDetail);
     order.setCreatedAt(now);
 
     if (paymentProperties.required()) {
@@ -122,6 +123,15 @@ public class OrderService {
     if (requested.values().stream().anyMatch(quantity -> quantity < 1)) {
       throw new BusinessRuleException("De cada plato pide al menos 1 almuerzo");
     }
+  }
+
+  /** En el centro comercial el detalle es opcional; en la calle de los muebles hace falta. */
+  private static String cleanDeliveryDetail(CreateOrderRequest request) {
+    String detail = request.deliveryDetail() == null ? "" : request.deliveryDetail().trim();
+    if (detail.isEmpty() && request.deliveryZone() != DeliveryZone.SHOPPING_CENTER) {
+      throw new BusinessRuleException("Cuéntanos el punto exacto de entrega");
+    }
+    return detail;
   }
 
   private void validateCutoff(LocalTime now) {

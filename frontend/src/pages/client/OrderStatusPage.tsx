@@ -163,7 +163,7 @@ export function OrderStatusPage() {
           <div><dt>Total</dt><dd>{formatCOP(order.total)}</dd></div>
           <div><dt>A nombre de</dt><dd>{order.customerName}</dd></div>
           <div><dt>Zona</dt><dd>{zoneLabel(order.deliveryZone, config.data)}</dd></div>
-          <div><dt>Detalle</dt><dd>{order.deliveryDetail}</dd></div>
+          {order.deliveryDetail && <div><dt>Detalle</dt><dd>{order.deliveryDetail}</dd></div>}
           <div><dt>Código</dt><dd className={styles.code}>{order.accessCode}</dd></div>
         </dl>
       </Card>

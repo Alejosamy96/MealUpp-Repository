@@ -161,6 +161,15 @@ class OrderApiIntegrationTest {
   }
 
   @Test
+  void detail01_shoppingCenterOrderWithoutDetailIsAccepted() throws Exception {
+    String json = orderJson("SHOPPING_CENTER").replace("Local 12", "");
+    mockMvc
+        .perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content(json))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.deliveryDetail").value(""));
+  }
+
+  @Test
   void cp03b_quantityOutOfRangeReturnsBadRequestWithMessage() throws Exception {
     String json = orderJson("SHOPPING_CENTER").replace("\"quantity\": 2", "\"quantity\": 11");
     mockMvc

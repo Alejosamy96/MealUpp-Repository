@@ -88,7 +88,7 @@ export function ReservePage() {
     if (!name.trim()) e.name = "Escribe tu nombre para saber a quién entregar.";
     if (!time) e.time = `Elige una hora entre ${formatTime(cfg.deliveryStart)} y ${formatTime(cfg.deliveryEnd)}`;
     if (!zone) e.zone = "Elige dónde te entregamos.";
-    if (!detail.trim()) e.detail = "Cuéntanos el local, oficina o punto exacto de entrega.";
+    if (zone === "FURNITURE_STREET" && !detail.trim()) e.detail = "Cuéntanos el local, oficina o punto exacto de entrega.";
     return e;
   };
 
@@ -229,11 +229,11 @@ export function ReservePage() {
             </div>
 
             <TextAreaField
-              label="Detalle de entrega"
+              label={zone === "SHOPPING_CENTER" ? "Detalle de entrega (opcional)" : "Detalle de entrega"}
               name="deliveryDetail"
-              required
+              required={zone !== "SHOPPING_CENTER"}
               maxLength={DETAIL_MAX}
-              placeholder="Ej.: Local 12, segundo piso"
+              placeholder={zone === "SHOPPING_CENTER" ? "Ej.: restaurante o local dentro del centro comercial" : "Ej.: Local 12, segundo piso"}
               hint={`${detail.length}/${DETAIL_MAX}`}
               value={detail}
               onChange={(e) => { setDetail(e.target.value); clearError("detail"); }}
