@@ -26,6 +26,9 @@ public class Dish {
   @Column(nullable = false)
   private boolean available;
 
+  /** Máximo de almuerzos de este plato que se venden por día. Nulo significa sin límite. */
+  private Integer dailyLimit;
+
   /** Clave base de la foto en el almacenamiento (por ejemplo dishes/3/ab12cd). */
   private String imageKey;
 
@@ -72,6 +75,28 @@ public class Dish {
 
   public void setAvailable(boolean available) {
     this.available = available;
+  }
+
+  public Integer getDailyLimit() {
+    return dailyLimit;
+  }
+
+  public void setDailyLimit(Integer dailyLimit) {
+    this.dailyLimit = dailyLimit;
+  }
+
+  /** Cuántos almuerzos quedan hoy, dado lo ya vendido. Nulo si el plato no tiene límite. */
+  public Integer remaining(long soldToday) {
+    if (dailyLimit == null) {
+      return null;
+    }
+    return (int) Math.max(0, dailyLimit - soldToday);
+  }
+
+  /** El plato está agotado si se marcó así a mano o si ya se vendió todo su cupo de hoy. */
+  public boolean soldOut(long soldToday) {
+    Integer left = remaining(soldToday);
+    return !available || (left != null && left <= 0);
   }
 
   public String getImageKey() {

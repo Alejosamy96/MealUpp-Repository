@@ -11,6 +11,8 @@ import com.example.mealupp.repository.DishRepository;
 import com.example.mealupp.repository.OrderRepository;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.HexFormat;
 import java.util.List;
 import org.slf4j.Logger;
@@ -31,6 +33,7 @@ public class DishAdminService {
   private final ObjectStorage storage;
   private final ImageProcessor imageProcessor;
   private final MediaUrls mediaUrls;
+  private final Clock clock;
   private final SecureRandom random = new SecureRandom();
 
   public DishAdminService(
@@ -38,19 +41,19 @@ public class DishAdminService {
       OrderRepository orderRepository,
       ObjectStorage storage,
       ImageProcessor imageProcessor,
-      MediaUrls mediaUrls) {
+      MediaUrls mediaUrls,
+      Clock clock) {
     this.dishRepository = dishRepository;
     this.orderRepository = orderRepository;
     this.storage = storage;
     this.imageProcessor = imageProcessor;
     this.mediaUrls = mediaUrls;
+    this.clock = clock;
   }
 
   @Transactional(readOnly = true)
   public List<StaffDishResponse> listAll() {
-    return dishRepository.findAllByOrderByNameAsc().stream()
-        .map(dish -> StaffDishResponse.from(dish, mediaUrls))
-        .toList();
+    return dishRepository.findAllByOrderByNameAsc().stream().map(this::view).toList();
   }
 
   @Transactional
@@ -63,7 +66,8 @@ public class DishAdminService {
     validatePrice(request.price());
     boolean available = request.available() == null || request.available();
     Dish dish = new Dish(name, clean(request.description()), request.price(), available);
-    return StaffDishResponse.from(dishRepository.save(dish), mediaUrls);
+    dish.setDailyLimit(request.dailyLimit());
+    return view(dishRepository.save(dish));
   }
 
   @Transactional
@@ -78,14 +82,15 @@ public class DishAdminService {
     dish.setName(name);
     dish.setDescription(clean(request.description()));
     dish.setPrice(request.price());
-    return StaffDishResponse.from(dishRepository.save(dish), mediaUrls);
+    dish.setDailyLimit(request.dailyLimit());
+    return view(dishRepository.save(dish));
   }
 
   @Transactional
   public StaffDishResponse updateAvailability(Long id, boolean available) {
     Dish dish = find(id);
     dish.setAvailable(available);
-    return StaffDishResponse.from(dishRepository.save(dish), mediaUrls);
+    return view(dishRepository.save(dish));
   }
 
   /** Elimina un plato. Si ya tiene pedidos no se puede borrar: se marca como agotado. */
@@ -112,7 +117,7 @@ public class DishAdminService {
     dish.setImageKey(baseKey);
     Dish saved = dishRepository.save(dish);
     deleteFiles(previous);
-    return StaffDishResponse.from(saved, mediaUrls);
+    return view(saved);
   }
 
   @Transactional
@@ -122,7 +127,13 @@ public class DishAdminService {
     dish.setImageKey(null);
     Dish saved = dishRepository.save(dish);
     deleteFiles(previous);
-    return StaffDishResponse.from(saved, mediaUrls);
+    return view(saved);
+  }
+
+  /** El plato como lo ve la administradora, con lo que ya se vendió hoy. */
+  private StaffDishResponse view(Dish dish) {
+    long sold = orderRepository.soldQuantity(dish.getId(), LocalDate.now(clock));
+    return StaffDishResponse.from(dish, mediaUrls, sold);
   }
 
   private Dish find(Long id) {

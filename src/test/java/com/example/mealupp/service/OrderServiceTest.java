@@ -686,6 +686,45 @@ class OrderServiceTest {
   }
 
   @Test
+  void stock01_anOrderThatPassesTheDailyLimitIsRejected() {
+    availableDish.setDailyLimit(10);
+    when(dishRepository.findById(1L)).thenReturn(Optional.of(availableDish));
+    when(orderRepository.soldQuantity(any(), any())).thenReturn(8L);
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest order = requestOf(new OrderItemRequest(1L, 3));
+
+    assertThatThrownBy(() -> service.createOrder(order))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("solo quedan 2");
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  void stock02_aDishWithNothingLeftIsSoldOut() {
+    availableDish.setDailyLimit(10);
+    when(dishRepository.findById(1L)).thenReturn(Optional.of(availableDish));
+    when(orderRepository.soldQuantity(any(), any())).thenReturn(10L);
+    OrderService service = serviceAt(LocalTime.of(9, 0));
+    CreateOrderRequest order = requestOf(new OrderItemRequest(1L, 1));
+
+    assertThatThrownBy(() -> service.createOrder(order))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("agotado");
+  }
+
+  @Test
+  void stock03_anOrderWithinTheRemainingStockIsAccepted() {
+    availableDish.setDailyLimit(10);
+    dishExistsAndSaveWorks();
+    when(orderRepository.soldQuantity(any(), any())).thenReturn(7L);
+
+    CreatedOrderResponse response =
+        serviceAt(LocalTime.of(9, 0)).createOrder(requestOf(new OrderItemRequest(1L, 3)));
+
+    assertThat(response.quantity()).isEqualTo(3);
+  }
+
+  @Test
   void multi07_anOldOrderWithoutItemsStillShowsItsDish() {
     Order old = order(2, LocalTime.of(12, 0), DeliveryZone.SHOPPING_CENTER, OrderStatus.PENDING);
     ReflectionTestUtils.setField(old, "items", new java.util.ArrayList<>());

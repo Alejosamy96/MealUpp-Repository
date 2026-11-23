@@ -64,9 +64,9 @@ export const staffApi = {
     request<DeliveryOrder[]>("GET", `/api/staff/delivery/orders${zoneParam(zone)}`, { auth, signal }),
 
   dishes: (signal?: AbortSignal) => request<StaffDish[]>("GET", "/api/staff/dishes", { auth, signal }),
-  createDish: (body: { name: string; description: string; price: number; available: boolean }) =>
+  createDish: (body: { name: string; description: string; price: number; available: boolean; dailyLimit: number | null }) =>
     request<StaffDish>("POST", "/api/staff/dishes", { auth, body }),
-  updateDish: (id: number, body: { name: string; description: string; price: number }) =>
+  updateDish: (id: number, body: { name: string; description: string; price: number; dailyLimit: number | null }) =>
     request<StaffDish>("PUT", `/api/staff/dishes/${q(id)}`, { auth, body }),
   setDishAvailable: (id: number, available: boolean) =>
     request<StaffDish>("PATCH", `/api/staff/dishes/${q(id)}/availability`, { auth, body: { available } }),
