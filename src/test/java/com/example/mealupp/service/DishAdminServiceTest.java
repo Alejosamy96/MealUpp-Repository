@@ -50,7 +50,10 @@ class DishAdminServiceTest {
             orderRepository,
             storage,
             new ImageProcessor(400, 1200),
-            new MediaUrls(storage));
+            new MediaUrls(storage),
+            java.time.Clock.fixed(
+                java.time.Instant.parse("2026-11-23T15:00:00Z"),
+                java.time.ZoneId.of("America/Bogota")));
     dish = new Dish("Pollo a la plancha", "Con arroz", new BigDecimal("12000"), true);
   }
 

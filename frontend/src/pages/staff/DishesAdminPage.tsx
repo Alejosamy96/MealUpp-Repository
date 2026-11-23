@@ -19,6 +19,8 @@ interface DishDraft {
   name: string;
   description: string;
   price: string;
+  /** Máximo de almuerzos por día; vacío significa sin límite. */
+  dailyLimit: string;
 }
 
 function validateDraft(d: DishDraft): Partial<Record<keyof DishDraft, string>> {
@@ -26,7 +28,15 @@ function validateDraft(d: DishDraft): Partial<Record<keyof DishDraft, string>> {
   if (!d.name.trim()) e.name = "Escribe el nombre del plato.";
   const price = Number(d.price);
   if (!d.price.trim() || !Number.isFinite(price) || price <= 0) e.price = "Escribe un precio mayor que cero, sin puntos (ej.: 12000).";
+  if (d.dailyLimit.trim()) {
+    const limit = Number(d.dailyLimit);
+    if (!Number.isInteger(limit) || limit < 1) e.dailyLimit = "Escribe un número entero de 1 en adelante, o déjalo vacío para no poner límite.";
+  }
   return e;
+}
+
+function limitOf(d: DishDraft): number | null {
+  return d.dailyLimit.trim() ? Number(d.dailyLimit) : null;
 }
 
 function DishForm({ initial, submitLabel, onSubmit, onCancel }: { initial: DishDraft; submitLabel: string; onSubmit: (d: DishDraft) => Promise<void>; onCancel?: () => void }) {
@@ -56,6 +66,7 @@ function DishForm({ initial, submitLabel, onSubmit, onCancel }: { initial: DishD
       <TextField label="Nombre" required maxLength={80} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} error={errors.name} />
       <TextAreaField label="Descripción" maxLength={160} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
       <TextField label="Precio (COP)" required inputMode="numeric" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value.replace(/[^\d]/g, "") })} error={errors.price} hint={draft.price ? formatCOP(Number(draft.price)) : undefined} />
+      <TextField label="Máximo de platos por día (opcional)" inputMode="numeric" value={draft.dailyLimit} onChange={(e) => setDraft({ ...draft, dailyLimit: e.target.value.replace(/[^\d]/g, "") })} error={errors.dailyLimit} hint="Cuando se vendan todos, el plato aparece como agotado. Déjalo vacío si no quieres límite." />
       {error && <Notice tone="error">{error}</Notice>}
       <div className={styles.formActions}>
         {onCancel && (
@@ -106,24 +117,30 @@ function DishItem({ dish, onUpdated, onDeleted }: { dish: StaffDish; onUpdated: 
   };
 
   return (
-    <Card className={`${s.item} ${dish.available ? "" : styles.soldOut}`}>
+    <Card className={`${s.item} ${dish.soldOut ? styles.soldOut : ""}`}>
       <div className={styles.dishHead}>
         <DishImage name={dish.name} src={dish.thumbnailUrl} className={styles.thumb} iconSize={26} />
         <div className={styles.dishInfo}>
           <p className={s.itemTitle}>{dish.name}</p>
           {dish.description && <p className={s.itemMeta}>{dish.description}</p>}
           <p className={styles.price}>{formatCOP(Number(dish.price))}</p>
+          {dish.dailyLimit !== null && (
+            <p className={s.itemMeta}>
+              Hoy quedan {dish.remaining ?? 0} de {dish.dailyLimit}
+              {dish.available && dish.soldOut ? " (cupo agotado)" : ""}
+            </p>
+          )}
         </div>
-        <Chip tone={dish.available ? "green" : "gray"}>{dish.available ? "Disponible" : "Agotado"}</Chip>
+        <Chip tone={dish.soldOut ? "gray" : "green"}>{dish.soldOut ? "Agotado" : "Disponible"}</Chip>
       </div>
 
       {editing ? (
         <DishForm
-          initial={{ name: dish.name, description: dish.description ?? "", price: String(dish.price) }}
+          initial={{ name: dish.name, description: dish.description ?? "", price: String(dish.price), dailyLimit: dish.dailyLimit === null ? "" : String(dish.dailyLimit) }}
           submitLabel="Guardar cambios"
           onCancel={() => setEditing(false)}
           onSubmit={async (d) => {
-            onUpdated(await staffApi.updateDish(dish.id, { name: d.name.trim(), description: d.description.trim(), price: Number(d.price) }));
+            onUpdated(await staffApi.updateDish(dish.id, { name: d.name.trim(), description: d.description.trim(), price: Number(d.price), dailyLimit: limitOf(d) }));
             setEditing(false);
           }}
         />
@@ -203,11 +220,11 @@ export function DishesAdminPage() {
         <Card className={`${s.item} ${styles.createCard}`}>
           <h2 className={styles.createTitle}>Nuevo plato</h2>
           <DishForm
-            initial={{ name: "", description: "", price: "" }}
+            initial={{ name: "", description: "", price: "", dailyLimit: "" }}
             submitLabel="Crear plato"
             onCancel={() => setCreating(false)}
             onSubmit={async (d) => {
-              const created = await staffApi.createDish({ name: d.name.trim(), description: d.description.trim(), price: Number(d.price), available: true });
+              const created = await staffApi.createDish({ name: d.name.trim(), description: d.description.trim(), price: Number(d.price), available: true, dailyLimit: limitOf(d) });
               dishes.setData((prev) => [...(prev ?? []), created]);
               setCreating(false);
             }}

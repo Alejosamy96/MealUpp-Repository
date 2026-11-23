@@ -79,3 +79,6 @@
 .miniStepper button { width: 34px; height: 34px; }
 .miniStepper output { min-width: 28px; font-size: 1rem; }
 .count { font-weight: 700; margin: var(--space-2) 0 0; }
+
+.dishSoldOut { opacity: 0.55; }
+.stockNote { font-size: var(--fs-xs); font-weight: 800; color: var(--color-text-muted); }

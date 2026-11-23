@@ -47,7 +47,7 @@ export function ReservePage() {
 
   const cfg = config.data;
   const dishes = menu.data?.dishes ?? [];
-  const chosen = dishes.filter((d) => (counts[d.id] ?? 0) > 0);
+  const chosen = dishes.filter((d) => !d.soldOut && (counts[d.id] ?? 0) > 0);
   const quantity = chosen.reduce((sum, d) => sum + (counts[d.id] ?? 0), 0);
   const slots = useMemo(() => (cfg ? deliverySlots(cfg.deliveryStart, cfg.deliveryEnd) : []), [cfg]);
   const now = nowInZone(cfg?.timeZone);
@@ -67,7 +67,7 @@ export function ReservePage() {
     const menuDishes = menu.data?.dishes;
     if (!menuDishes) return;
     setCounts((current) => {
-      const kept = Object.entries(current).filter(([id]) => menuDishes.some((d) => d.id === Number(id)));
+      const kept = Object.entries(current).filter(([id]) => menuDishes.some((d) => d.id === Number(id) && !d.soldOut));
       return kept.length === Object.keys(current).length ? current : Object.fromEntries(kept);
     });
   }, [menu.data]);
@@ -157,19 +157,24 @@ export function ReservePage() {
                 {dishes.map((d) => {
                   const count = counts[d.id] ?? 0;
                   return (
-                    <div key={d.id} className={`${styles.dishRow} ${count > 0 ? styles.dishSelected : ""}`}>
+                    <div key={d.id} className={`${styles.dishRow} ${count > 0 ? styles.dishSelected : ""} ${d.soldOut ? styles.dishSoldOut : ""}`}>
                       <DishImage name={d.name} src={d.thumbnailUrl} className={styles.dishThumb} iconSize={22} />
                       <span className={styles.dishText}>
                         <span className={styles.dishName}>{d.name}</span>
                         {d.description && <span className={styles.dishDesc}>{d.description}</span>}
                         <span className={styles.dishPrice}>{formatCOP(d.price)}</span>
+                        {d.soldOut ? (
+                          <span className={styles.stockNote}>Agotado</span>
+                        ) : (
+                          d.remaining !== null && <span className={styles.stockNote}>Quedan {d.remaining}</span>
+                        )}
                       </span>
                       <div className={`${styles.stepper} ${styles.miniStepper}`} role="group" aria-label={`Cantidad de ${d.name}`}>
-                        <button type="button" onClick={() => changeCount(d.id, -1)} disabled={count <= 0} aria-label={`Quitar uno de ${d.name}`}>
+                        <button type="button" onClick={() => changeCount(d.id, -1)} disabled={d.soldOut || count <= 0} aria-label={`Quitar uno de ${d.name}`}>
                           <Icon name="minus" size={18} />
                         </button>
                         <output aria-live="polite" aria-label={`${count} de ${d.name}`}>{count}</output>
-                        <button type="button" onClick={() => changeCount(d.id, 1)} disabled={quantity >= cfg.maxQuantity} aria-label={`Agregar uno de ${d.name}`}>
+                        <button type="button" onClick={() => changeCount(d.id, 1)} disabled={d.soldOut || quantity >= cfg.maxQuantity || (d.remaining !== null && count >= d.remaining)} aria-label={`Agregar uno de ${d.name}`}>
                           <Icon name="plus" size={18} />
                         </button>
                       </div>

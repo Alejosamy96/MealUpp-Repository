@@ -39,6 +39,10 @@ export interface Dish {
   price: number;
   thumbnailUrl: string | null;
   imageUrl: string | null;
+  /** Ya no se puede pedir hoy (se acabó el cupo). */
+  soldOut: boolean;
+  /** Cuántos quedan hoy; null si el plato no tiene límite. */
+  remaining: number | null;
 }
 
 export interface MenuResponse {
@@ -177,6 +181,10 @@ export interface StaffDish {
   available: boolean;
   thumbnailUrl: string | null;
   imageUrl: string | null;
+  /** Máximo de almuerzos de este plato por día; null si no tiene límite. */
+  dailyLimit: number | null;
+  remaining: number | null;
+  soldOut: boolean;
 }
 
 export interface StaffMember {

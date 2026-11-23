@@ -78,8 +78,11 @@ public class OrderService {
     validateDeliveryTime(request.deliveryTime());
     validateDailyLimit(now.toLocalDate());
     List<OrderLine> lines = new ArrayList<>();
-    requested.forEach(
-        (dishId, quantity) -> lines.add(OrderLine.of(findAvailableDish(dishId), quantity)));
+    for (Map.Entry<Long, Integer> entry : requested.entrySet()) {
+      Dish dish = findAvailableDish(entry.getKey());
+      validateStock(dish, entry.getValue(), now.toLocalDate());
+      lines.add(OrderLine.of(dish, entry.getValue()));
+    }
 
     Order order =
         new Order(
@@ -153,6 +156,18 @@ public class OrderService {
       throw new BusinessRuleException(
           "Ya se alcanzó el máximo de " + rules.maxPerDay() + " pedidos para hoy");
     }
+  }
+
+  /** Si el plato tiene cupo diario, no se aceptan más almuerzos de los que quedan hoy. */
+  private void validateStock(Dish dish, int quantity, LocalDate today) {
+    Integer left = dish.remaining(orderRepository.soldQuantity(dish.getId(), today));
+    if (left == null || quantity <= left) {
+      return;
+    }
+    throw new BusinessRuleException(
+        left == 0
+            ? "El plato " + dish.getName() + " ya está agotado por hoy"
+            : "De " + dish.getName() + " solo quedan " + left + " por hoy");
   }
 
   private Dish findAvailableDish(Long dishId) {
